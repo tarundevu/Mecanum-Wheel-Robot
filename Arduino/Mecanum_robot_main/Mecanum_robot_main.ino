@@ -26,22 +26,22 @@ Motor motor3 = Motor(d2AIN1, d2AIN2, d2PWMA, offsetA, STBY);
 Motor motor4 = Motor(d2BIN1, d2BIN2, d2PWMB, offsetB, STBY); 
 
 // ENCODER //
-//const int EncoderA1 = 2;
-//const int EncoderA2 = 3;
-//volatile int cnt = 0;
-//volatile long encoderCount = 0;
-//volatile int encoderA1state = LOW;
-//volatile int encoderA2state = LOW;
+const int EncoderA1 = 2;
+const int EncoderA2 = 3;
+// volatile int cnt = 0;
+volatile long encoderCount = 0;
+volatile int encoderA1state = LOW;
+volatile int encoderA2state = LOW;
 // Variables //
 float Vx = 0, Vy = 0, Wz = 0;
 
 void setup() {
   // put your setup code here, to run once:
 
-//  pinMode(EncoderA1, INPUT_PULLUP);
-//  pinMode(EncoderA2, INPUT_PULLUP);
-//  encoderA1state = digitalRead(EncoderA1);
-//  attachInterrupt(digitalPinToInterrupt(EncoderA1), sensor1ISR, CHANGE);
+ pinMode(EncoderA1, INPUT_PULLUP);
+ pinMode(EncoderA2, INPUT_PULLUP);
+ encoderA1state = digitalRead(EncoderA1);
+ attachInterrupt(digitalPinToInterrupt(EncoderA1), sensor1ISR, CHANGE);
 //  attachInterrupt(digitalPinToInterrupt(EncoderA2), Encodercnt, RISING);
   Serial.begin(115200);
   
@@ -73,24 +73,24 @@ void loop() {
 }
 
 // Functions //
-//void sensor1ISR() {
-//  int newState =  digitalRead(EncoderA1);
-//  if (newState != encoderA1state){
-//    if(cnt==2){
-//      if (digitalRead(EncoderA2) != newState){
-//        encoderCount++;
-//        cnt = 0;
-//      }
-//      else{
-//        encoderCount--;
-//        cnt = 0;
-//      }
-//    }
-//    cnt++;
-//  }
-//  encoderA1state = newState;
-// 
-//}
+void sensor1ISR() {
+ int newState =  digitalRead(EncoderA1);
+ if (newState != encoderA1state){
+   if(cnt==2){
+     if (digitalRead(EncoderA2) != newState){
+       encoderCount++;
+       cnt = 0;
+     }
+     else{
+       encoderCount--;
+       cnt = 0;
+     }
+   }
+   cnt++;
+ }
+ encoderA1state = newState;
+
+}
 
 //float *EncoderDist(){
 //  float dist1 = (float)encoderCount/20.0 * M_PI *6; // in cm  
@@ -100,7 +100,7 @@ void loop() {
 //  static float dist[4] = {dist1,dis2,dist3,dist4};
 //  return dist;
 //}
-/*
+/**
  * Converts velocity to PWM value
  */
 int speedToPWM(int speed){
@@ -110,8 +110,8 @@ int speedToPWM(int speed){
   pwmvalue = constrain(pwmvalue, -255, 255);
   return pwmvalue;
 }
-/*
- *  @param - vx velccity in x direction (min 0.3 m/s max 0.6 m/s)
+/**
+ *  @param - vx velocity in x direction (min 0.3 m/s max 0.6 m/s)
  *  @param - vy velocity in y direction (min 0.3 m/s max 0.6 m/s)
  *  @param - wz velocity in z direction (min 1.6 rad/s max 4 rad/s)
  */
