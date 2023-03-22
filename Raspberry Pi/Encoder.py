@@ -1,4 +1,5 @@
 import time
+import math
 import RPi.GPIO as GPIO
 #/*
 # This class is used to calculate the no. of rotations from the Outputs of photo interruptor modules
@@ -26,11 +27,14 @@ class Encoder():
     def getCount(self):
         return self.count
     
-    def getRev(self):
-        rev = self.count/self.pulses_per_revolution
-        return rev
+    def getDistancePerPulse(self):
+        distance_per_pulse = math.pi*6/self.pulses_per_revolution
+        return distance_per_pulse
     
     def getDist(self):
-        dist = (self.count/self.pulses_per_revolution)*18.84
+        dist = self.getDistancePerPulse * self.getCount
         return dist
+    
+    def getSpeed(self):
+        pass 
         
