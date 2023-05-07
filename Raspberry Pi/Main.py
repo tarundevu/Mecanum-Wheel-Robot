@@ -17,7 +17,7 @@ enc2 = Encoder.Encoder(6,12,20.0)
 enc3 = Encoder.Encoder(13,16,20.0)
 enc4 = Encoder.Encoder(17,18,20.0)
 Robot = Odometry.Mecanum_Drive(enc1,enc2,enc3,enc4)
-
+end_flag = False
 # E1 = 0.0
 # E2 = 0.0 
 # E3 = 0.0
@@ -49,34 +49,53 @@ def MoveRobot(type, dist, speed):
     # Vy = 0
     # Wz = 0
     if type == 0:
-        curDist = cur_x
+        targetDist = cur_x + dist
     elif type == 1:
-        curDist = cur_y
-    targetDist = curDist + dist
+        targetDist = cur_y + dist
+#     targetDist = curDist + dist
 
     dir = -1 if (dist<0) else 1
     speed *= dir
-   
-    while (curDist != targetDist+1 or curDist != targetDist-1):
-        Vx = 0
-        Vy = 0
-        Wz = 0
-        if type == 0:
-            # curDist = Robot.getxDist()
-            Vx = speed
-        elif type == 1:
-            # curDist = Robot.getyDist()
-            Vy = speed
+    
+    if dir == 1:
+        while ((cur_x <= targetDist) if type == 0 else(cur_y <= targetDist)):
+            Vx = 0
+            Vy = 0
+            Wz = 0
+            if type == 0:
+                Vx = speed
+            elif type == 1:
+                Vy = speed
+            
+            SendData(Vx,Vy,Wz)
+            # valList = [str(Vx),str(Vy),str(Wz)]
+            # sendStr = ','.join(valList)
+            # print(sendStr)
+            # ser.write(sendStr.encode('utf-8'))
+            # line = ser.readline().decode('utf-8').rstrip()
+            print(cur_y)
+            time.sleep(0.01)
+    elif dir == -1:
+        while ((cur_x >= targetDist) if type == 0 else(cur_y >= targetDist)):
+            Vx = 0
+            Vy = 0
+            Wz = 0
+            
+            if type == 0:
+                Vx = speed
+            elif type == 1:
+                Vy = speed
 
-        SendData(Vx,Vy,Wz)
-        # valList = [str(Vx),str(Vy),str(Wz)]
-        # sendStr = ','.join(valList)
-        # print(sendStr)
-        # ser.write(sendStr.encode('utf-8'))
-        # line = ser.readline().decode('utf-8').rstrip()
-        # print(line)
+            SendData(Vx,Vy,Wz)
+            # valList = [str(Vx),str(Vy),str(Wz)]
+            # sendStr = ','.join(valList)
+            # print(sendStr)
+            # ser.write(sendStr.encode('utf-8'))
+            # line = ser.readline().decode('utf-8').rstrip()
+            print(cur_y)
 
     SendData(0,0,0)
+    
         
 
 
@@ -92,10 +111,14 @@ if __name__ == '__main__':
     update_odometry_thread.start()
     try:
         while True:
-#             
-            MoveRobot(1,100,0.35)         
+            if not end_flag:
+                MoveRobot(1,200,0.5)
+                end_flag=False
+            if not end_flag:
+                MoveRobot(1,-200,0.35)
+                end_flag=True   
             
-            time.sleep(0.1)
+            time.sleep(0.01)
 #             window_surface.blit(background, (0, 0))
     except KeyboardInterrupt:
         # update_odometry_thread
