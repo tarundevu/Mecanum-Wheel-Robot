@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 import time
 import serial
+import struct
 # import pygame
 import RPi.GPIO as GPIO
 import Encoder
 import Odometry
 import threading
+
 # Define GPIO pins
 
 # Initialize GPIO
@@ -27,73 +29,54 @@ cur_y = 0.0
 cur_w = 0.0
 # Functions
 def updateOdometry():
-    global cur_x, cur_y, cur_w
+    global cur_x, cur_y, cur_w, E1
     pass
     while True:
         cur_x = Robot.getxDist()
         cur_y = Robot.getyDist()
         cur_w = Robot.getzDist()
+        E1 = enc4.getDist()
+        print(E1)
         time.sleep(0.01)
 
 def SendData(Vx,Vy,Wz):
-    valList = [str(Vx),str(Vy),str(Wz)]
-    sendStr = ','.join(valList)
-    print(sendStr)
-    ser.write(sendStr.encode('utf-8'))
-    line = ser.readline().decode('utf-8').rstrip()
-    print(line)
+#     valList = [str(Vx),str(Vy),str(Wz)]
+#     sendStr = ','.join(valList)
+#     print(sendStr)
+#     ser.write(sendStr.encode('utf-8'))
+#     line = ser.readline().decode('utf-8').rstrip()
+    data = struct.pack('fff', Vx, Vy, Wz)
+    ser.write(data)
+    #print(data)
+   
 
 def MoveRobot(type, dist, speed):
     global cur_x, cur_y, cur_w
-    # Vx = 0
-    # Vy = 0
-    # Wz = 0
-    if type == 0:
-        targetDist = cur_x + dist
-    elif type == 1:
-        targetDist = cur_y + dist
-#     targetDist = curDist + dist
-
+    Vx = 0
+    Vy = 0
+    Wz = 0
+    condition = None
+    # Check if distance is positive. Else set speed to negative
     dir = -1 if (dist<0) else 1
     speed *= dir
+#     targetDist = curDist + dist
+    if type == 0:
+            Vx = speed
+            targetDist = cur_x + dist
+            
+    elif type == 1:
+            Vy = speed
+            targetDist = cur_y + dist
     
-    if dir == 1:
-        while ((cur_x <= targetDist) if type == 0 else(cur_y <= targetDist)):
-            Vx = 0
-            Vy = 0
-            Wz = 0
-            if type == 0:
-                Vx = speed
-            elif type == 1:
-                Vy = speed
+    if dir > 0:
+        while (cur_x <= targetDist) if type == 0 else (cur_y <= targetDist):
             
             SendData(Vx,Vy,Wz)
-            # valList = [str(Vx),str(Vy),str(Wz)]
-            # sendStr = ','.join(valList)
-            # print(sendStr)
-            # ser.write(sendStr.encode('utf-8'))
-            # line = ser.readline().decode('utf-8').rstrip()
-            print(cur_y)
-            time.sleep(0.01)
-    elif dir == -1:
-        while ((cur_x >= targetDist) if type == 0 else(cur_y >= targetDist)):
-            Vx = 0
-            Vy = 0
-            Wz = 0
+    elif dir < 0:
+        while (cur_x >= targetDist) if type == 0 else (cur_y >= targetDist):
             
-            if type == 0:
-                Vx = speed
-            elif type == 1:
-                Vy = speed
-
             SendData(Vx,Vy,Wz)
-            # valList = [str(Vx),str(Vy),str(Wz)]
-            # sendStr = ','.join(valList)
-            # print(sendStr)
-            # ser.write(sendStr.encode('utf-8'))
-            # line = ser.readline().decode('utf-8').rstrip()
-            print(cur_y)
-
+    
     SendData(0,0,0)
     
         
@@ -112,16 +95,16 @@ if __name__ == '__main__':
     try:
         while True:
             if not end_flag:
-                MoveRobot(1,200,0.5)
-                end_flag=False
-            if not end_flag:
-                MoveRobot(1,-200,0.35)
-                end_flag=True   
+                MoveRobot(1,15,0.5)
+                end_flag=True
+#             if not end_flag:
+#                 MoveRobot(1,-200,0.35)
+#                 end_flag=True   
             
             time.sleep(0.01)
 #             window_surface.blit(background, (0, 0))
     except KeyboardInterrupt:
-        # update_odometry_thread
+        SendData(0,0,0)
         print("Exiting...")
         
     finally:

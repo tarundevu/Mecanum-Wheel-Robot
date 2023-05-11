@@ -19,12 +19,12 @@ class Mecanum_Drive():
         self.Enc4 = E4
 
     def getxDist(self):
-        x = (3/4.0)*(-self.Enc1.getDist()+self.Enc2.getDist()+self.Enc3.getDist()-self.Enc4.getDist())
+        x = (1/4.0)*(-self.Enc1.getDist()+self.Enc2.getDist()+self.Enc3.getDist()-self.Enc4.getDist())
         x = format(x,".2f")
         #self.x_dist = x
         return float(x)
     def getyDist(self): 
-        y = (3/4.0)*(self.Enc1.getDist()+self.Enc2.getDist()+self.Enc3.getDist()+self.Enc4.getDist())
+        y = (1/4.0)*(self.Enc1.getDist()+self.Enc2.getDist()+self.Enc3.getDist()+self.Enc4.getDist())
         y = format(y,".2f")
         #self.y_Dist = y
         return float(y)
