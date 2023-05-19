@@ -11,8 +11,7 @@ class Encoder():
         self.pin_b = pin_b
         self.count = 0
         self.pulses_per_revolution = pulses_per_revolution
-#         self.Astate = GPIO.input(self.pin_a)
-#         self.Bstate = GPIO.input(self.pin_b)
+        self.prev_count = 0
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.pin_a, GPIO.IN)
         GPIO.setup(self.pin_b, GPIO.IN)
@@ -35,6 +34,12 @@ class Encoder():
         dist = self.getDistancePerPulse * self.getCount
         return dist
     
-    def getSpeed(self):
-        pass 
+    def getVel(self):
+        encoder_count = self.getCount() - self.prev_count # gets the encoder count per sec
+        rpm  = (encoder_count*60.0)/self.pulses_per_revolution # finds the rpm
+        angular_vel = rpm * 0.10472 # finds angular velocity
+        # linear_vel = angular_vel * 0.03 # finds the linear velocity
+        angular_vel = format(angular_vel,".2f")
+        self.prev_count = self.getCount()
+        return float(angular_vel)
         
