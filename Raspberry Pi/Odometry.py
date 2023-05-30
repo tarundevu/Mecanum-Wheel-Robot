@@ -10,10 +10,9 @@ class Mecanum_Drive():
         self.x_dist = 0
         self.y_dist = 0
         self.w_dist = 0
-        self.temp = 0
-        self.Vx = 2
-        self.Vy = 3
-        self.Vw = 2
+        self.Vx = 0
+        self.Vy = 0
+        self.Vw = 0
         self.Enc1 = E1
         self.Enc2 = E2
         self.Enc3 = E3
