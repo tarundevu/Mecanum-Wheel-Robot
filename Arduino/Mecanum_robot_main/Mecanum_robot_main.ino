@@ -24,9 +24,6 @@ Motor motor2 = Motor(d1BIN1, d1BIN2, d1PWMB, offsetB, STBY);
 Motor motor3 = Motor(d2AIN1, d2AIN2, d2PWMA, offsetA, STBY); 
 Motor motor4 = Motor(d2BIN1, d2BIN2, d2PWMB, offsetB, STBY); 
 
-// ENCODER //
-
-// Variables //
 float Vx = 0, Vy = 0, Wz = 0;
 
 void setup() {
@@ -55,17 +52,28 @@ void loop() {
   }
   
   MoveRobot(Vx,Vy,Wz);
+
+//  motor2.drive(speedToPWM(Vy)); 
+//  motor2.drive(speedToPWM(Vy)); 
+//    motor3.drive(speedToPWM(Vy)); 
+
+//  motor4.drive(speedToPWM(Vy)); 
+//   Serial.println(speedToPWM(Vx));
    
 }
-
-// Functions //
 
 /*
  * Converts velocity to PWM value
  */
 int speedToPWM(float speed){
   // Maps the desired speed to a PWM value using a linear equation
-  int pwmvalue = map(speed, -20.9, 20.9,-255,255); // in radians/sec
+  int pwmvalue = 0;
+  if (speed>0)
+    pwmvalue = map(speed, 3.14, 28.27,40,255); // in radians/sec
+  else if (speed<0)
+    pwmvalue = map(speed, -28.27,-3.14,-255,-40); // in radians/sec
+  if (speed ==0)
+    pwmvalue = 0;
   // Makes sure the PWM value is within the allowed range
   pwmvalue = constrain(pwmvalue, -255, 255);
   return pwmvalue;
@@ -87,7 +95,10 @@ void MoveRobot(float vx, float vy, float wz){
   int pwm2 = speedToPWM(w2);
   int pwm3 = speedToPWM(w3);
   int pwm4 = speedToPWM(w4);
-
+  if ((pwm1 != 0) && (pwm2 != 0)){
+    pwm1 = pwm1 + 6;
+    pwm2 = pwm2 + 6;
+  }
   motor1.drive(pwm1); 
   motor2.drive(pwm2); 
   motor3.drive(pwm3); 
