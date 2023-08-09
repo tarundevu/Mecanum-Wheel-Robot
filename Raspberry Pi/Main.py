@@ -37,9 +37,9 @@ cur_w = 0.0
 theta = 0.0
 temp = 0
 # PID
-pidx = PID.PID(1,0.1,0)
-pidy = PID.PID(1,0.1,0)
-pidw = PID.PID(5,0.1,0)
+pidx = PID.PID(5,0.1,2)
+pidy = PID.PID(2,0.1,2)
+pidw = PID.PID(5,0.2,0)
 # pid4 = PID.PID(1,0,0)
 # Functions
 def updateOdometry():
@@ -64,6 +64,28 @@ def updateOdometry():
 #         print("{} : {}".format(cur_y2,cur_y))
 #         print("{}+{}-{}-{}={}".format(E1,E2,E3,E4,E1+E2-E3-E4))
         time.sleep(0.1)
+
+def calculatePosition():
+    global area_origin_x, area_origin_y, robot_origin_x, robot_origin_y, robot_orientation, delta_x, delta_y, delta_orientation
+
+    # Update odometry to get the latest values
+
+    # Calculate displacement in the area based on the robot's orientation
+    displacement_x = delta_x * math.cos(robot_orientation) - delta_y * math.sin(robot_orientation)
+    displacement_y = delta_x * math.sin(robot_orientation) + delta_y * math.cos(robot_orientation)
+
+    # Update the current position in the area
+    area_current_x = area_origin_x + robot_origin_x + displacement_x
+    area_current_y = area_origin_y + robot_origin_y + displacement_y
+
+    # Update the robot's origin within its local coordinate system
+    robot_origin_x += displacement_x
+    robot_origin_y += displacement_y
+
+    # Update the robot's orientation
+    robot_orientation += delta_orientation
+
+    return area_current_x, area_current_y
 
 def SendData(Vx,Vy,Wz):
     data = struct.pack('fff', Vx, Vy, Wz)
@@ -94,24 +116,33 @@ def map_values(num, inMin, inMax, outMin, outMax):
 
 def PID_Controller(x,y,w):
     global cur_x, cur_y, cur_w, pidx, pidy, pidw
+    end_Flag = False
     Vx = 0
     Vy = 0
     Wz = 0
-    x_val = pidx.Calculate(x,cur_x,5)
-    y_val = pidy.Calculate(y,cur_y,5)
-    w_val = pidw.Calculate(w,cur_w,1)
-    x_limit = 20 if x_val < 20 else (x+50)
-    y_limit = 20 if y_val < 20 else (y+50)
-    w_limit = 20 if w_val < 20 else (w+50)
+    x_val,i1,endx = pidx.Calculate(x,cur_x,5)
+    y_val,i2,endy = pidy.Calculate(y,cur_y,5)
+    w_val,i3,endw = pidw.Calculate(w,cur_w,1,0.05)
+    x_limit = 20 if x_val < 20 else (x*(1+0.1+1)+1)
+    y_limit = 20 if y_val < 20 else (y*(1+0.1+0)+1)
+    w_limit = 20 if w_val < 20 else (w*(1+0.1+0)+1)
     if x_val != 0:
         Vx = map_values(x_val,-x_limit,x_limit,-0.3768,0.3768)
+        Vx = max(min(Vx, 0.3768), -0.3768)
     if y_val != 0:
         Vy = map_values(y_val,-y_limit,y_limit,-0.3768,0.3768)
+        Vy = max(min(Vy, 0.3768), -0.3768)
     if w_val != 0:
         Wz = map_values(w_val,-w_limit,w_limit,-4,4)
-    print("{}".format(x_val))
+        Wz = max(min(Wz, 4), -4)
+#     print("{}".format(i2))
+#     print(i2)
 #     print("{} {} {}".format(Vx,Vy,Wz))
+    if endx and endy and endw == True:
+        end_Flag = True
     SendData(Vx,Vy,Wz)
+    return end_Flag
+
         
 def MoveRobot(type, dist, speed):
     global cur_x, cur_y, cur_w
@@ -129,7 +160,19 @@ def MoveRobot(type, dist, speed):
         
     while True:
         PID_Controller(x,y,w)
-        
+
+def MoveToCoord(target_x, target_y):
+    global cur_x, cur_y, cur_w
+    x = 0
+    y = 0
+    w = 0
+    x =  target_x
+    y =  target_y
+    end_flag = False
+    while not end_flag:
+        end_flag = PID_Controller(x,y,w)
+    
+    
 
 if __name__ == '__main__':
     
@@ -147,7 +190,7 @@ if __name__ == '__main__':
             if not end_flag:
                 while True:
                     if not end_flag:
-                        MoveRobot(0,30,0.2)
+                        MoveRobot(1,-30,0.2)
                         end_flag=True
 #                     SendData(0,0.08,0)
 #             time.sleep(2)
