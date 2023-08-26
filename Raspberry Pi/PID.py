@@ -31,22 +31,35 @@ class PID():
             self.total_error += error
             self.integral = (self.Ki * self.total_error)
             # limit integral
-            self.integral = max(min(self.integral, val*0.7), -abs(val*0.7))
+            self.integral = max(min(self.integral, abs(val*0.7)), -abs(val*0.7))
             # if error is low stop integral
             if error>=-end_limit and error<=end_limit:
                 self.total_error = 0
-
         else:
             self.integral = 0
+        # derivative   
         derivative = self.Kd * (error - self.prev_error)
 
         change = proportional + self.integral + derivative
         new_value = change
         self.prev_error = error
-
-        if (error - self.prev_error) > -1 or (error - self.prev_error) < 1:
-            end_flag = True
+        # end condition
+        if error<=0.5 and error>=-0.5:
+            if (error - self.prev_error) > -0.5 or (error - self.prev_error) < 0.5:
+                #print(" running")
+                end_flag = True
+        else:
+            #print("right")
+            end_flag = False
+            
         string = str(proportional) +""+ str(self.integral) +""+ str(derivative)
 #         print("{} + {} + {} = {}".format(proportional,self.integral,derivative,new_value))
-        return float(new_value), string, end_flag
+        return float(new_value), float(self.integral), bool(end_flag)
     
+    def Reset(self):
+        self.error = 0
+        self.prev_error = 0
+        self.total_error = 0
+        self.newvalue = 0
+        self.integral = 0
+        
