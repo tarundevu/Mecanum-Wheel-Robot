@@ -22,24 +22,29 @@ enc3 = Encoder.Encoder(13,16,20.0)
 enc4 = Encoder.Encoder(17,18,20.0)
 Robot = Odometry.Mecanum_Drive(enc1,enc2,enc3,enc4)
 end_flag = False
+# Encoders
 E1 = 0.0
 E2 = 0.0 
 E3 = 0.0
 E4 = 0.0
+# Velocities
 V1 = 0.0
 V2 = 0.0
 V3 = 0.0
 V4 = 0.0
+# Robot Odometry
 cur_x = 0.0
 cur_y = 0.0
 cur_y2 = 0.0
 cur_w = 0.0
 theta = 0.0
-temp = 0
+# Robot Position
+Robot_x = 0.0
+Robot_y = 0.0
 # PID
-pidx = PID.PID(5,0.1,2)
-pidy = PID.PID(2,0.1,2)
-pidw = PID.PID(5,0.2,0)
+pidx = PID.PID(8,0.1,2)
+pidy = PID.PID(7.5,0.1,5)
+pidw = PID.PID(8,2,5)
 # pid4 = PID.PID(1,0,0)
 # Functions
 def updateOdometry():
@@ -58,35 +63,14 @@ def updateOdometry():
 #         V3 = enc3.getVel()
 #         V4 = enc4.getVel()
         _x_, _y_, cur_w, theta = Robot.CalculateOdometry(cur_time)
-#         print("{}:{}:{}::{}".format(cur_x,cur_y,cur_w,theta))
+        print("{} :{}: {}:: {}".format(cur_x,cur_y,cur_w,theta))
 #         print("{}:{}:{}::{}".format(E1,E2,E3,E4))
 #         print("{}:{}:{}::{}".format(V1,V2,V3,V4))
 #         print("{} : {}".format(cur_y2,cur_y))
 #         print("{}+{}-{}-{}={}".format(E1,E2,E3,E4,E1+E2-E3-E4))
         time.sleep(0.1)
-
-def calculatePosition():
-    global area_origin_x, area_origin_y, robot_origin_x, robot_origin_y, robot_orientation, delta_x, delta_y, delta_orientation
-
-    # Update odometry to get the latest values
-
-    # Calculate displacement in the area based on the robot's orientation
-    displacement_x = delta_x * math.cos(robot_orientation) - delta_y * math.sin(robot_orientation)
-    displacement_y = delta_x * math.sin(robot_orientation) + delta_y * math.cos(robot_orientation)
-
-    # Update the current position in the area
-    area_current_x = area_origin_x + robot_origin_x + displacement_x
-    area_current_y = area_origin_y + robot_origin_y + displacement_y
-
-    # Update the robot's origin within its local coordinate system
-    robot_origin_x += displacement_x
-    robot_origin_y += displacement_y
-
-    # Update the robot's orientation
-    robot_orientation += delta_orientation
-
-    return area_current_x, area_current_y
-
+def UpdatePosition():
+    pass
 def SendData(Vx,Vy,Wz):
     data = struct.pack('fff', Vx, Vy, Wz)
     ser.write(data)
@@ -116,16 +100,16 @@ def map_values(num, inMin, inMax, outMin, outMax):
 
 def PID_Controller(x,y,w):
     global cur_x, cur_y, cur_w, pidx, pidy, pidw
-    end_Flag = False
     Vx = 0
     Vy = 0
     Wz = 0
+    end_Flag = False
     x_val,i1,endx = pidx.Calculate(x,cur_x,5)
-    y_val,i2,endy = pidy.Calculate(y,cur_y,5)
+    y_val,i2,endy= pidy.Calculate(y,cur_y,5)
     w_val,i3,endw = pidw.Calculate(w,cur_w,1,0.05)
-    x_limit = 20 if x_val < 20 else (x*(1+0.1+1)+1)
-    y_limit = 20 if y_val < 20 else (y*(1+0.1+0)+1)
-    w_limit = 20 if w_val < 20 else (w*(1+0.1+0)+1)
+    x_limit = 20 if x_val < 20 else (abs(x)*(8+0.1+2)+1)
+    y_limit = 20 if y_val < 20 else (abs(y)*(8+0.1+5)+1)
+    w_limit = 20 if w_val < 20 else (abs(w)*(15+0.1+2)+1)
     if x_val != 0:
         Vx = map_values(x_val,-x_limit,x_limit,-0.3768,0.3768)
         Vx = max(min(Vx, 0.3768), -0.3768)
@@ -135,10 +119,10 @@ def PID_Controller(x,y,w):
     if w_val != 0:
         Wz = map_values(w_val,-w_limit,w_limit,-4,4)
         Wz = max(min(Wz, 4), -4)
-#     print("{}".format(i2))
+#     print("{}".format(endx))
 #     print(i2)
-#     print("{} {} {}".format(Vx,Vy,Wz))
-    if endx and endy and endw == True:
+#     print("{} {} {}".format(endx,endy,endw))
+    if endx and endy:
         end_Flag = True
     SendData(Vx,Vy,Wz)
     return end_Flag
@@ -160,20 +144,24 @@ def MoveRobot(type, dist, speed):
         
     while True:
         PID_Controller(x,y,w)
-
+        
 def MoveToCoord(target_x, target_y):
-    global cur_x, cur_y, cur_w
+    global cur_x, cur_y, cur_w, end_flag
     x = 0
     y = 0
     w = 0
     x =  target_x
     y =  target_y
-    end_flag = False
+    pid_end_flag = False
     while not end_flag:
-        end_flag = PID_Controller(x,y,w)
+        pid_end_flag = PID_Controller(x,y,w)
+        end_flag = pid_end_flag
+    SendData(0,0,0)
+    pidx.Reset()
+    pidy.Reset()
+    pidw.Reset()
     
-    
-
+        
 if __name__ == '__main__':
     
     try:
@@ -188,10 +176,24 @@ if __name__ == '__main__':
     try:
         while True:
             if not end_flag:
-                while True:
-                    if not end_flag:
-                        MoveRobot(1,-30,0.2)
-                        end_flag=True
+    #                         MoveRobot(2,2*math.pi,0.2)
+                MoveRobot(0,30,0)
+#                 MoveToCoord(30,0)
+                end_flag=False
+                time.sleep(2)
+    #                     if not end_flag:
+                #MoveRobot(2,2*math.pi,0.2)
+#                 MoveToCoord(30,30)
+#                 end_flag=False
+#                 time.sleep(2)
+#                 
+# #                 MoveRobot(2,math.pi,0.2)
+# #                 
+# #                 time.sleep(2)
+#                 
+#                 MoveToCoord(0,0)
+#                 end_flag=True
+                
 #                     SendData(0,0.08,0)
 #             time.sleep(2)
 #             if not end_flag:
