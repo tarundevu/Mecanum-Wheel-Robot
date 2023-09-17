@@ -38,6 +38,13 @@ cur_y = 0.0
 cur_y2 = 0.0
 cur_w = 0.0
 theta = 0.0
+# IMU Data
+Roll = 0.0
+Pitch = 0.0
+Yaw = 0.0
+acc_x = 0.0
+acc_y = 0.0
+acc_z = 0.0
 # Robot Position
 Robot_x = 0.0
 Robot_y = 0.0
@@ -48,52 +55,44 @@ pidw = PID.PID(8,2,5)
 # pid4 = PID.PID(1,0,0)
 # Functions
 def updateOdometry():
-    global cur_x, cur_y, cur_w, theta, E1, E2, E3, E4,V1,V2,V3,V4
+    global cur_x, cur_y, cur_w, theta, E1, E2, E3, E4,V1,V2,V3,V4, Roll,Pitch,Yaw,acc_x,acc_y,acc_z
     while True:
         cur_time = time.time()
         cur_x = Robot.getxDist()
         cur_y = Robot.getyDist()
         # cur_w = Robot.getzDist(E1,E2,E3,E4,cur_w)
-#         E1 = enc1.getDist()
-#         E2 = enc2.getDist()
-#         E3 = enc3.getDist()
-#         E4 = enc4.getDist()
+        E1 = enc1.getDist()
+        E2 = enc2.getDist()
+        E3 = enc3.getDist()
+        E4 = enc4.getDist()
 #         V1 = enc1.getVel()
 #         V2 = enc2.getVel()
 #         V3 = enc3.getVel()
 #         V4 = enc4.getVel()
         _x_, _y_, cur_w, theta = Robot.CalculateOdometry(cur_time)
-        print("{} :{}: {}:: {}".format(cur_x,cur_y,cur_w,theta))
-#         print("{}:{}:{}::{}".format(E1,E2,E3,E4))
+        #print("{} :{}: {}:: {}".format(cur_x,cur_y,cur_w,theta))
+        
+        print("{}:{}:{}::{}".format(E1,E2,E3,E4))
 #         print("{}:{}:{}::{}".format(V1,V2,V3,V4))
 #         print("{} : {}".format(cur_y2,cur_y))
 #         print("{}+{}-{}-{}={}".format(E1,E2,E3,E4,E1+E2-E3-E4))
+        if ser.in_waiting >=24:
+            imudata = ser.read(24)
+            Roll,Pitch,Yaw,acc_x,acc_y,acc_z = struct.unpack('ffffff',imudata)
+            
+        #print("Roll:{:.2f} Pitch:{:.2f} Yaw:{:.2f}".format(Roll,Pitch,Yaw))
         time.sleep(0.1)
 def UpdatePosition():
     pass
 def SendData(Vx,Vy,Wz):
-    data = struct.pack('fff', Vx, Vy, Wz)
-    ser.write(data)
-    #print(data)
-    
-def vel_to_wheelspeed(Vx,Vy,Wz):
-    radius = 0.03
-    lx = 0.068
-    ly = 0.061
-    w1 = 1/radius * (Vy + Vx +(lx + ly)*Wz)
-    w2 = 1/radius * (Vy - Vx -(lx + ly)*Wz)
-    w3 = 1/radius * (Vy - Vx +(lx + ly)*Wz)
-    w4 = 1/radius * (Vy + Vx -(lx + ly)*Wz)
-    return w1,w2,w3,w4
-
-def wheelspeed_to_vel(w1,w2,w3,w4):
-    radius = 0.03
-    lx = 0.068
-    ly = 0.061
-    Vx = (w1-w2-w3+w4)*radius/4.0
-    Vy = (w1+w2+w3+w4)*radius/4.0
-    Wz = (w1-w2+w3-w4)*radius/(4.0*(lx + ly))
-    return Vx,Vy,Wz
+    try:
+        data = struct.pack('fff', Vx, Vy, Wz)
+        ser.write(data)
+        #print(data)
+    except serial.SerialException as e:
+        print(f"Error writing data to serial port: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
 
 def map_values(num, inMin, inMax, outMin, outMax):
     return outMin + (float(num - inMin) / float(inMax - inMin) * float(outMax - outMin))

@@ -1,8 +1,9 @@
+#include "MPU9250.h"
 #include <SparkFun_TB6612.h>
 
 // MOTOR //
-#define d1AIN1 2
-#define d1AIN2 3
+#define d1AIN1 A1
+#define d1AIN2 A2
 #define d1BIN1 4
 #define d1BIN2 7
 #define d1PWMA 5
@@ -17,6 +18,9 @@
 #define d2PWMA 10
 #define d2PWMB 11
 
+// IMU //
+MPU9250 mpu;
+
 const int offsetA = 1;
 const int offsetB = 1;
 Motor motor1 = Motor(d1AIN1, d1AIN2, d1PWMA, offsetA, STBY); 
@@ -30,38 +34,64 @@ void setup() {
   // put your setup code here, to run once:
 
   Serial.begin(115200);
-  
+  Wire.begin();
+  delay(2000);
+
+  mpu.setup(0x68);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-//   sensor1ISR();
+
   String data;
+//  float roll = mpu.getRoll();
+//  float pitch = mpu.getPitch();
+//  float yaw = mpu.getYaw();
+//  float acc_x = mpu.getAccX();
+//  float acc_y = mpu.getAccY();
+//  float acc_z = mpu.getAccZ();
   
   if (Serial.available() >= 12) {
-//    data = Serial.readStringUntil('\n');
-//    Serial.print("You sent me: ");
-//      Vx = Serial.parseFloat();
-//      Vy = Serial.parseFloat();
-//      Wz = Serial.parseFloat();
+
     Serial.readBytes((char *)&Vx, 4);
     Serial.readBytes((char *)&Vy, 4);
     Serial.readBytes((char *)&Wz, 4);
-//     Serial.println("recieved");
-//      MoveRobot(Vx,Vy,Wz);
+
   }
   
   MoveRobot(Vx,Vy,Wz);
-
+  
+  if (mpu.update()) {
+        static uint32_t prev_ms = millis();
+        if (millis() > prev_ms + 100) {
+            SendData();
+            prev_ms = millis();
+        }
+    }
+  
 //  motor2.drive(speedToPWM(Vy)); 
 //  motor2.drive(speedToPWM(Vy)); 
 //    motor3.drive(speedToPWM(Vy)); 
-
 //  motor4.drive(speedToPWM(Vy)); 
 //   Serial.println(speedToPWM(Vx));
    
 }
-
+void SendData(){
+  float roll = mpu.getRoll();
+  float pitch = mpu.getPitch();
+  float yaw = mpu.getYaw();
+  float acc_x = mpu.getAccX();
+  float acc_y = mpu.getAccY();
+  float acc_z = mpu.getAccZ();
+//  Serial.println(roll,2);
+ 
+  Serial.write((byte*)&roll,sizeof(roll));
+  Serial.write((byte*)&pitch,sizeof(pitch));
+  Serial.write((byte*)&yaw,sizeof(yaw));
+  Serial.write((byte*)&acc_x,sizeof(acc_x));
+  Serial.write((byte*)&acc_y,sizeof(acc_y));
+  Serial.write((byte*)&acc_z,sizeof(acc_z));
+}
 /*
  * Converts velocity to PWM value
  */
@@ -95,10 +125,21 @@ void MoveRobot(float vx, float vy, float wz){
   int pwm2 = speedToPWM(w2);
   int pwm3 = speedToPWM(w3);
   int pwm4 = speedToPWM(w4);
-  if ((pwm1 != 0) && (pwm2 != 0)){
-    pwm1 = pwm1 + 6;
-    pwm2 = pwm2 + 6;
-  }
+
+  int m1 = (pwm1<0)? -1:1;
+  int m2 = (pwm2<0)? -1:1;
+  int m3 = (pwm3<0)? -1:1;
+  int m4 = (pwm4<0)? -1:1;
+  
+  if (pwm1 != 0)
+    pwm1 = pwm1 + 5*m1;
+  if (pwm2 != 0)
+    pwm2 = pwm2 + 5*m2;
+  if (pwm3 != 0)
+    pwm3 = pwm3 + 1*m3;
+  if (pwm4 != 0)
+    pwm4 = pwm4;
+  
   motor1.drive(pwm1); 
   motor2.drive(pwm2); 
   motor3.drive(pwm3); 
