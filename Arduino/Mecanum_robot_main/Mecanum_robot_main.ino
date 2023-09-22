@@ -1,7 +1,8 @@
 #include "MPU9250.h"
 #include <SparkFun_TB6612.h>
 
-// MOTOR //
+// MOTOR // pins 0 and 1 are used for serial communication
+//          pins 2 and 3 are used for I2C communication
 #define d1AIN1 A1
 #define d1AIN2 A2
 #define d1BIN1 4
@@ -76,6 +77,9 @@ void loop() {
 //   Serial.println(speedToPWM(Vx));
    
 }
+/*
+ * Sends IMU data over to the PI
+ */
 void SendData(){
   float roll = mpu.getRoll();
   float pitch = mpu.getPitch();
