@@ -1,4 +1,10 @@
-#include "MPU9250.h"
+#include <Wire.h>
+#include "I2Cdev.h"
+#include "RTIMUSettings.h"
+#include "RTIMU.h"
+#include "RTFusionRTQF.h" 
+#include "CalLib.h"
+#include <EEPROM.h>
 #include <SparkFun_TB6612.h>
 
 // MOTOR //
@@ -19,7 +25,16 @@
 #define d2PWMB 11
 
 // IMU //
-MPU9250 mpu;
+RTIMU *imu;                                           // the IMU object
+RTFusionRTQF fusion;                                  // the fusion object
+RTIMUSettings settings;                               // the settings object
+
+//  DISPLAY_INTERVAL sets the rate at which results are displayed
+#define DISPLAY_INTERVAL  100 
+
+unsigned long lastDisplay;
+unsigned long lastRate;
+int sampleCount;
 
 const int offsetA = 1;
 const int offsetB = 1;
@@ -32,25 +47,46 @@ float Vx = 0, Vy = 0, Wz = 0;
 
 void setup() {
   // put your setup code here, to run once:
-
+  int errcode;
   Serial.begin(115200);
   Wire.begin();
-  delay(2000);
+  imu = RTIMU::createIMU(&settings); 
+  Serial.print("ArduinoIMU starting using device "); Serial.println(imu->IMUName());
+    if ((errcode = imu->IMUInit()) < 0) {
+        Serial.print("Failed to init IMU: "); Serial.println(errcode);
+    }
+  
+    if (imu->getCalibrationValid())
+        Serial.println("Using compass calibration");
+    else
+        Serial.println("No valid compass calibration data");
+  lastDisplay = lastRate = millis();
+  sampleCount = 0;
 
-  mpu.setup(0x68);
+  // Slerp power controls the fusion and can be between 0 and 1
+  // 0 means that only gyros are used, 1 means that only accels/compass are used
+  // In-between gives the fusion mix.
+  
+  fusion.setSlerpPower(0);
+  
+  // use of sensors in the fusion algorithm can be controlled here
+  // change any of these to false to disable that sensor
+  
+  fusion.setGyroEnable(true);
+  fusion.setAccelEnable(true);
+  fusion.setCompassEnable(true);
+  
+
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-
+  unsigned long now = millis();
+  unsigned long delta;
   String data;
-//  float roll = mpu.getRoll();
-//  float pitch = mpu.getPitch();
-//  float yaw = mpu.getYaw();
-//  float acc_x = mpu.getAccX();
-//  float acc_y = mpu.getAccY();
-//  float acc_z = mpu.getAccZ();
-  
+  int loopCount = 1;
+
+  // Reciever
   if (Serial.available() >= 12) {
 
     Serial.readBytes((char *)&Vx, 4);
@@ -58,16 +94,35 @@ void loop() {
     Serial.readBytes((char *)&Wz, 4);
 
   }
-  
-  MoveRobot(Vx,Vy,Wz);
-  
-  if (mpu.update()) {
-        static uint32_t prev_ms = millis();
-        if (millis() > prev_ms + 100) {
+  // Transmitter
+  while (imu->IMURead()) {                                // get the latest data if ready yet
+        // this flushes remaining data in case we are falling behind
+        if (++loopCount >= 10)
+            continue;
+        fusion.newIMUData(imu->getGyro(), imu->getAccel(), imu->getCompass(), imu->getTimestamp());
+       
+        if ((now - lastDisplay) >= DISPLAY_INTERVAL) {
+            lastDisplay = now;
+//          RTMath::display("Gyro:", (RTVector3&)imu->getGyro());                // gyro data
+//          RTMath::display("Accel:", (RTVector3&)imu->getAccel());              // accel data
+//          RTMath::display("Mag:", (RTVector3&)imu->getCompass());              // compass data
+//            RTMath::displayRollPitchYaw("Pose:", ((RTVector3&)fusion.getFusionPose())); // fused output
             SendData();
-            prev_ms = millis();
+//            RTVector3 rpy = (RTVector3&)fusion.getFusionPose();
+//            float roll = static_cast<float>(rpy.x());
+//            float pitch = static_cast<float>(rpy.y());
+//            float yaw = static_cast<float>(rpy.z());
+//            RTVector3 acc = (RTVector3&)imu->getAccel();
+//            float acc_x = static_cast<float>(acc.x());
+//            float acc_y = static_cast<float>(acc.y());
+//            float acc_z = static_cast<float>(acc.z());
+//            Serial.println();
         }
     }
+//    Serial.println("hi");
+  MoveRobot(Vx,Vy,Wz);
+  
+  
   
 //  motor2.drive(speedToPWM(Vy)); 
 //  motor2.drive(speedToPWM(Vy)); 
@@ -77,14 +132,18 @@ void loop() {
    
 }
 void SendData(){
-  float roll = mpu.getRoll();
-  float pitch = mpu.getPitch();
-  float yaw = mpu.getYaw();
-  float acc_x = mpu.getAccX();
-  float acc_y = mpu.getAccY();
-  float acc_z = mpu.getAccZ();
-//  Serial.println(roll,2);
- 
+//  fusion.newIMUData(imu->getGyro(), imu->getAccel(), imu->getCompass(), imu->getTimestamp());
+  RTVector3 rpy = (RTVector3&)fusion.getFusionPose();
+  float roll = static_cast<float>(rpy.x())*57.296;
+  float pitch = static_cast<float>(rpy.y())*57.296;
+  float yaw = static_cast<float>(rpy.z())*57.296;
+  RTVector3 acc = (RTVector3&)imu->getAccel();
+  float acc_x = static_cast<float>(acc.x());
+  float acc_y = static_cast<float>(acc.y());
+  float acc_z = static_cast<float>(acc.z());
+//  Serial.println(yaw);
+//  rpy = fusion.getFusionPose();
+//  acc = imu->getAccel();
   Serial.write((byte*)&roll,sizeof(roll));
   Serial.write((byte*)&pitch,sizeof(pitch));
   Serial.write((byte*)&yaw,sizeof(yaw));

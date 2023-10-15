@@ -9,18 +9,15 @@ import Encoder
 import Odometry
 import threading
 import PID
+import IMU
 
-# Define GPIO pins
-
-# Initialize GPIO
-
-# Variables
-
+# Variables & Objects
 enc1 = Encoder.Encoder(4,5,20.0)
 enc2 = Encoder.Encoder(6,12,20.0)
 enc3 = Encoder.Encoder(13,16,20.0)
 enc4 = Encoder.Encoder(17,18,20.0)
 Robot = Odometry.Mecanum_Drive(enc1,enc2,enc3,enc4)
+Robot_IMU = IMU.Mpu()
 end_flag = False
 # Encoders
 E1 = 0.0
@@ -35,16 +32,11 @@ V4 = 0.0
 # Robot Odometry
 cur_x = 0.0
 cur_y = 0.0
-cur_y2 = 0.0
-cur_w = 0.0
-theta = 0.0
+cur_w = 0.0 # Z distance
+theta = 0.0 # heading
+# Fused Odometry
 # IMU Data
-Roll = 0.0
-Pitch = 0.0
-Yaw = 0.0
-acc_x = 0.0
-acc_y = 0.0
-acc_z = 0.0
+IMU_Val = (0.0,0.0,0.0,0.0,0.0,0.0)
 # Robot Position
 Robot_x = 0.0
 Robot_y = 0.0
@@ -52,15 +44,22 @@ Robot_y = 0.0
 pidx = PID.PID(8,0.1,2)
 pidy = PID.PID(7.5,0.1,5)
 pidw = PID.PID(8,2,5)
-# pid4 = PID.PID(1,0,0)
+
 # Functions
 def updateOdometry():
-    global cur_x, cur_y, cur_w, theta, E1, E2, E3, E4,V1,V2,V3,V4, Roll,Pitch,Yaw,acc_x,acc_y,acc_z
+    global cur_x, cur_y, cur_w, theta, E1, E2, E3, E4,V1,V2,V3,V4, IMU_Val
     while True:
         cur_time = time.time()
+        # Serial comm
+        if ser.in_waiting >=24:
+            imudata = ser.read(24)
+            IMU_Val = struct.unpack('ffffff',imudata)
+        # IMU
+        IMU_Pose, IMU_w = Robot_IMU.getOdometry(IMU_Val,cur_time)
+        # Odometry
         cur_x = Robot.getxDist()
         cur_y = Robot.getyDist()
-        # cur_w = Robot.getzDist(E1,E2,E3,E4,cur_w)
+#         cur_w = IMU_Pose
         E1 = enc1.getDist()
         E2 = enc2.getDist()
         E3 = enc3.getDist()
@@ -70,16 +69,15 @@ def updateOdometry():
 #         V3 = enc3.getVel()
 #         V4 = enc4.getVel()
         _x_, _y_, cur_w, theta = Robot.CalculateOdometry(cur_time)
-        #print("{} :{}: {}:: {}".format(cur_x,cur_y,cur_w,theta))
-        
-        print("{}:{}:{}::{}".format(E1,E2,E3,E4))
+#         print("{} :{}: {}:: {}::{}".format(cur_x,cur_y,cur_w,theta,IMU_Pose))
+        # Fused Odometry
+        # print("{}:{}:{}::{}".format(E1,E2,E3,E4))
 #         print("{}:{}:{}::{}".format(V1,V2,V3,V4))
-#         print("{} : {}".format(cur_y2,cur_y))
+        print("{}||{}".format(IMU_Pose,IMU_w))
 #         print("{}+{}-{}-{}={}".format(E1,E2,E3,E4,E1+E2-E3-E4))
-        if ser.in_waiting >=24:
-            imudata = ser.read(24)
-            Roll,Pitch,Yaw,acc_x,acc_y,acc_z = struct.unpack('ffffff',imudata)
-            
+ 
+           
+           
         #print("Roll:{:.2f} Pitch:{:.2f} Yaw:{:.2f}".format(Roll,Pitch,Yaw))
         time.sleep(0.1)
 def UpdatePosition():
@@ -139,7 +137,7 @@ def MoveRobot(type, dist, speed):
     elif type == 1:
         y = setpoint + cur_y
     elif type == 2:
-        w = setpoint + cur_w
+        w = setpoint + cur_w                                              
         
     while True:
         PID_Controller(x,y,w)
@@ -171,12 +169,13 @@ if __name__ == '__main__':
     update_odometry_thread = threading.Thread(target=updateOdometry)
     update_odometry_thread.daemon = True
     update_odometry_thread.start()
-    
+    #initialize yaw
+    Robot_IMU.setInitialYaw(IMU_Val[2])
     try:
         while True:
             if not end_flag:
     #                         MoveRobot(2,2*math.pi,0.2)
-                MoveRobot(0,30,0)
+                MoveRobot(2,2*math.pi,0.2)
 #                 MoveToCoord(30,0)
                 end_flag=False
                 time.sleep(2)
@@ -215,3 +214,4 @@ if __name__ == '__main__':
         
     finally:
         GPIO.cleanup()
+
