@@ -52,7 +52,7 @@ class PID():
             #print("right")
             end_flag = False
             
-        string = str(proportional) +""+ str(self.integral) +""+ str(derivative)
+        # string = str(proportional) +""+ str(self.integral) +""+ str(derivative)
 #         print("{} + {} + {} = {}".format(proportional,self.integral,derivative,new_value))
         return float(new_value), float(self.integral), bool(end_flag)
     
