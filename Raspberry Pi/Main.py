@@ -98,10 +98,11 @@ def updateOdometry():
             timeint = 0
         #print("Roll:{:.2f} Pitch:{:.2f} Yaw:{:.2f}".format(Roll,Pitch,Yaw))
         time.sleep(0.1)
+
 def UpdatePosition(x,y,theta):
     t = math.radians(theta)
     r_x = math.cos(t)*x + math.sin(t)*y
-    r_y = -math.sin(t)*x + math.sin(t)*y
+    r_y = -math.sin(t)*x + math.cos(t)*y
     
     return round(r_x,2),round(r_y,2)
 def SendData(Vx,Vy,Wz):
@@ -173,12 +174,13 @@ def MoveRobot(type, dist, speed):
        
         
 def MoveToCoord(target_x, target_y):
-    global cur_x, cur_y, cur_w, end_flag
+    global theta, end_flag
+    angle = math.radians(theta)
     x = 0
     y = 0
-    w = 0
-    x =  target_x
-    y =  target_y
+    w = cur_w
+    x =  math.cos(angle)*target_x - math.sin(angle)*target_y
+    y =  math.sin(angle)*target_x + math.cos(angle)*target_y
     pid_end_flag = False
     while not end_flag:
         flag = PID_Controller(x,y,w)
