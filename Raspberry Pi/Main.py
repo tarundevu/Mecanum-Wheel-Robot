@@ -97,7 +97,7 @@ def updateOdometry():
         else:
             timeint = 0
         #print("Roll:{:.2f} Pitch:{:.2f} Yaw:{:.2f}".format(Roll,Pitch,Yaw))
-        time.sleep(0.1)
+        time.sleep(0.05)
 
 def UpdatePosition(x,y,theta):
     t = math.radians(theta)
@@ -126,7 +126,7 @@ def PID_Controller(x,y,w):
     end_Flag = False
     x_val,i1,endx = pidx.Calculate(x,cur_x,5)
     y_val,i2,endy= pidy.Calculate(y,cur_y,5)
-    w_val,i3,endw = pidw.Calculate(w,cur_w,5,0.02)
+    w_val,i3,endw = pidw.Calculate(w,cur_w,5,0.02,time.time())
     x_limit = 20 if x_val < 20 else (abs(x)*(8+0.1+2)+1)
     y_limit = 20 if y_val < 20 else (abs(y)*(8+0.1+5)+1)
     w_limit = 20 if w_val < 20 else (abs(w)*(15+0.1+2)+1)

@@ -1,14 +1,13 @@
-#include <Wire.h>
-#include "I2Cdev.h"
-#include "RTIMUSettings.h"
-#include "RTIMU.h"
-#include "RTFusionRTQF.h" 
-#include "CalLib.h"
-#include <EEPROM.h>
-#include <SparkFun_TB6612.h>
 
-// MOTOR // pins 0 and 1 are used for serial communication
-//          pins 2 and 3 are used for I2C communication
+#include "I2Cdev.h"
+#include <SparkFun_TB6612.h>
+#include "MPU6050_6Axis_MotionApps20.h"
+#if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+    #include "Wire.h"
+#endif
+// MOTOR 
+// pins 0 and 1 are used for serial communication
+// pins 2 and 3 are used for I2C communication
 #define d1AIN1 A1
 #define d1AIN2 A2
 #define d1BIN1 4
@@ -26,16 +25,35 @@
 #define d2PWMB 11
 
 // IMU //
-RTIMU *imu;                                           // the IMU object
-RTFusionRTQF fusion;                                  // the fusion object
-RTIMUSettings settings;                               // the settings object
+MPU6050 mpu;
 
-//  DISPLAY_INTERVAL sets the rate at which results are displayed
-#define DISPLAY_INTERVAL  100 
+#define OUTPUT_READABLE_YAWPITCHROLL
+#define INTERRUPT_PIN A3
 
-unsigned long lastDisplay;
-unsigned long lastRate;
-int sampleCount;
+// MPU control/status vars
+bool dmpReady = false;  // set true if DMP init was successful
+uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
+uint8_t devStatus;      // return status after each device operation (0 = success, !0 = error)
+uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
+uint16_t fifoCount;     // count of all bytes currently in FIFO
+uint8_t fifoBuffer[64]; // FIFO storage buffer
+
+// orientation/motion vars
+Quaternion q;           // [w, x, y, z]         quaternion container
+VectorInt16 aa;         // [x, y, z]            accel sensor measurements
+VectorInt16 aaReal;     // [x, y, z]            gravity-free accel sensor measurements
+VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measurements
+VectorFloat gravity;    // [x, y, z]            gravity vector
+float euler[3];         // [psi, theta, phi]    Euler angle container
+float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
+// ================================================================
+// ===               INTERRUPT DETECTION ROUTINE                ===
+// ================================================================
+
+volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
+void dmpDataReady() {
+    mpuInterrupt = true;
+}
 
 const int offsetA = 1;
 const int offsetB = 1;
@@ -45,38 +63,61 @@ Motor motor3 = Motor(d2AIN1, d2AIN2, d2PWMA, offsetA, STBY);
 Motor motor4 = Motor(d2BIN1, d2BIN2, d2PWMB, offsetB, STBY); 
 
 float Vx = 0, Vy = 0, Wz = 0;
-
+long inittime = millis();
 void setup() {
+  
   // put your setup code here, to run once:
-  int errcode;
-  Serial.begin(115200);
-  Wire.begin();
-  imu = RTIMU::createIMU(&settings); 
-  Serial.print("ArduinoIMU starting using device "); Serial.println(imu->IMUName());
-    if ((errcode = imu->IMUInit()) < 0) {
-        Serial.print("Failed to init IMU: "); Serial.println(errcode);
-    }
-  
-    if (imu->getCalibrationValid())
-        Serial.println("Using compass calibration");
-    else
-        Serial.println("No valid compass calibration data");
-  lastDisplay = lastRate = millis();
-  sampleCount = 0;
+  #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+        Wire.begin();
+        Wire.setClock(400000); // 400kHz I2C clock. Comment this line if having compilation difficulties
+    #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
+        Fastwire::setup(400, true);
+    #endif
 
-  // Slerp power controls the fusion and can be between 0 and 1
-  // 0 means that only gyros are used, 1 means that only accels/compass are used
-  // In-between gives the fusion mix.
+  Serial.begin(115200);
+  while (!Serial);
   
-  fusion.setSlerpPower(0);
-  
-  // use of sensors in the fusion algorithm can be controlled here
-  // change any of these to false to disable that sensor
-  
-  fusion.setGyroEnable(true);
-  fusion.setAccelEnable(true);
-  fusion.setCompassEnable(true);
-  
+  mpu.initialize();
+  pinMode(INTERRUPT_PIN, INPUT);
+
+  devStatus = mpu.dmpInitialize();
+    // supply your own gyro offsets here, scaled for min sensitivity
+    mpu.setXGyroOffset(67);
+    mpu.setYGyroOffset(-27);
+    mpu.setZGyroOffset(-36);
+    mpu.setZAccelOffset(8943); // 1688 factory default for my test chip
+
+    // make sure it worked (returns 0 if so)
+    if (devStatus == 0) {
+        // Calibration Time: generate offsets and calibrate our MPU6050
+        mpu.CalibrateAccel(6);
+        mpu.CalibrateGyro(6);
+//        mpu.PrintActiveOffsets();
+        // turn on the DMP, now that it's ready
+//        Serial.println(F("Enabling DMP..."));
+        mpu.setDMPEnabled(true);
+
+        // enable Arduino interrupt detection
+        //Serial.print(F("Enabling interrupt detection (Arduino external interrupt "));
+        //Serial.print(digitalPinToInterrupt(INTERRUPT_PIN));
+//        Serial.println(F(")..."));
+        attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
+        mpuIntStatus = mpu.getIntStatus();
+        // set our DMP Ready flag so the main loop() function knows it's okay to use it
+        //Serial.println(F("DMP ready! Waiting for first interrupt..."));
+        dmpReady = true;
+        // get expected DMP packet size for later comparison
+        packetSize = mpu.dmpGetFIFOPacketSize();
+    } 
+//    else {
+//        // ERROR!
+//        // 1 = initial memory load failed
+//        // 2 = DMP configuration updates failed
+//        // (if it's going to break, usually the code will be 1)
+////        Serial.print(F("DMP Initialization failed (code "));
+////        Serial.print(devStatus);
+////        Serial.println(F(")"));
+//    }
 
 }
 
@@ -95,31 +136,47 @@ void loop() {
     Serial.readBytes((char *)&Wz, 4);
 
   }
+  if (!dmpReady) return;
+//   read a packet from FIFO
+  
+  
+    if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { // Get the Latest packet 
+      
+      #ifdef OUTPUT_READABLE_YAWPITCHROLL
+          // display Euler angles in degrees
+          mpu.dmpGetQuaternion(&q, fifoBuffer);
+          mpu.dmpGetGravity(&gravity, &q);
+          mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+//           Serial.print("ypr\t");
+//           Serial.print(ypr[0] * 180/M_PI);
+//           Serial.print("\t");
+//           Serial.print(ypr[1] * 180/M_PI);
+//           Serial.print("\t");
+//           Serial.println(ypr[2] * 180/M_PI);
+          
+         
+          //Serial.println(yaw);
+          
+      #endif
+  }
   // Transmitter
-  while (imu->IMURead()) {                                // get the latest data if ready yet
-        // this flushes remaining data in case we are falling behind
-        if (++loopCount >= 10)
-            continue;
-        fusion.newIMUData(imu->getGyro(), imu->getAccel(), imu->getCompass(), imu->getTimestamp());
-       
-        if ((now - lastDisplay) >= DISPLAY_INTERVAL) {
-            lastDisplay = now;
-//          RTMath::display("Gyro:", (RTVector3&)imu->getGyro());                // gyro data
-//          RTMath::display("Accel:", (RTVector3&)imu->getAccel());              // accel data
-//          RTMath::display("Mag:", (RTVector3&)imu->getCompass());              // compass data
-//            RTMath::displayRollPitchYaw("Pose:", ((RTVector3&)fusion.getFusionPose())); // fused output
-            SendData();
-//            RTVector3 rpy = (RTVector3&)fusion.getFusionPose();
-//            float roll = static_cast<float>(rpy.x());
-//            float pitch = static_cast<float>(rpy.y());
-//            float yaw = static_cast<float>(rpy.z());
-//            RTVector3 acc = (RTVector3&)imu->getAccel();
-//            float acc_x = static_cast<float>(acc.x());
-//            float acc_y = static_cast<float>(acc.y());
-//            float acc_z = static_cast<float>(acc.z());
-//            Serial.println();
-        }
-    }
+  if ((now - inittime)>=100){
+    inittime = now;
+    float roll = ypr[2] * 180/M_PI;
+    float pitch = ypr[1] * 180/M_PI;
+    float yaw = ypr[0] * 180/M_PI;
+    float  acc_x = 0;
+    float acc_y = 0;
+    float acc_z = 0;
+    Serial.write((byte*)&roll,sizeof(roll));
+    Serial.write((byte*)&pitch,sizeof(pitch));
+    Serial.write((byte*)&yaw,sizeof(yaw));
+    Serial.write((byte*)&acc_x,sizeof(acc_x));
+    Serial.write((byte*)&acc_y,sizeof(acc_y));
+    Serial.write((byte*)&acc_z,sizeof(acc_z));
+  
+    
+  }
 //    Serial.println("hi");
   MoveRobot(Vx,Vy,Wz);
   
@@ -136,24 +193,27 @@ void loop() {
  * Sends IMU data over to the PI
  */
 void SendData(){
+//  float roll ;
+//          float pitch =0.0;
+//          float yaw =0.0;
+//          float acc_x =0.0;
+//          float acc_y =0.0;
+//          float acc_z =0.0;
 //  fusion.newIMUData(imu->getGyro(), imu->getAccel(), imu->getCompass(), imu->getTimestamp());
-  RTVector3 rpy = (RTVector3&)fusion.getFusionPose();
-  float roll = static_cast<float>(rpy.x())*57.296;
-  float pitch = static_cast<float>(rpy.y())*57.296;
-  float yaw = static_cast<float>(rpy.z())*57.296;
-  RTVector3 acc = (RTVector3&)imu->getAccel();
-  float acc_x = static_cast<float>(acc.x());
-  float acc_y = static_cast<float>(acc.y());
-  float acc_z = static_cast<float>(acc.z());
-//  Serial.println(yaw);
-//  rpy = fusion.getFusionPose();
-//  acc = imu->getAccel();
+  
+         float roll = ypr[2] * 180/M_PI;
+          float pitch = ypr[1] * 180/M_PI;
+          float yaw = ypr[0] * 180/M_PI;
+         float  acc_x = 0;
+          float acc_y = 0;
+          float acc_z = 0;
   Serial.write((byte*)&roll,sizeof(roll));
   Serial.write((byte*)&pitch,sizeof(pitch));
   Serial.write((byte*)&yaw,sizeof(yaw));
   Serial.write((byte*)&acc_x,sizeof(acc_x));
   Serial.write((byte*)&acc_y,sizeof(acc_y));
   Serial.write((byte*)&acc_z,sizeof(acc_z));
+//    Serial.println(yaw);
 }
 /*
  * Converts velocity to PWM value
