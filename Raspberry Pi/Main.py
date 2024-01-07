@@ -45,9 +45,9 @@ IMU_Val = (0.0,0.0,0.0,0.0,0.0,0.0)
 Robot_x = 0.0
 Robot_y = 0.0
 # PID
-pidx = PID.PID(10,0.1,2)
-pidy = PID.PID(7.5,0.1,5)
-pidw = PID.PID(14,2,5)
+pidx = PID.PID(10,0.5,10)
+pidy = PID.PID(10,0.5,10)
+pidw = PID.PID(5,0.01,8)
 timeint = 0
 # Functions
 def updateOdometry():
@@ -59,7 +59,7 @@ def updateOdometry():
         if ser.in_waiting >=24:
             imudata = ser.read(24)
             IMU_Val = struct.unpack('ffffff',imudata)
-            
+#             print("ok")
         if timeint>10:
             if not init_yaw:
                 Robot_IMU.setInitialYaw(IMU_Val[2])
@@ -73,7 +73,7 @@ def updateOdometry():
         # Odometry
         cur_x = Robot.getxDist()
         cur_y = Robot.getyDist()
-        cur_w = pose +0.15
+        cur_w = pose 
         E1 = enc1.getDist()
         E2 = enc2.getDist()
         E3 = enc3.getDist()
@@ -84,11 +84,11 @@ def updateOdometry():
 #         V4 = enc4.getVel()
 #         _x_, _y_, cur_w, theta = Robot.CalculateOdometry(cur_time)
         Robot_x, Robot_y = UpdatePosition(cur_x,cur_y,theta)
-#         print("{} :{}: {}:: {}".format(cur_x,cur_y,cur_w,theta))
-        print("{} : {} : {} :{} : {}".format(Robot_x,Robot_y,cur_x,cur_y,theta))
+#         print("{} :{}: {}:: {q}".format(cur_x,cur_y,cur_w,theta))
+#         print("{} : {} : {} :{} : {} : {}".format(Robot_x,Robot_y,cur_x,cur_y,cur_w,theta))
         # Fused Odometry
-        # print("{}:{}:{}::{}".format(E1,E2,E3,E4))
-#         print("{}:{}:{}::{}".format(V1,V2,V3,V4))
+#                                                                                                                                                                print("{}:{}:{}::{}".format(E1,E2,E3,E4))
+#         print("{}:{}:{}::{}".format(E1,E2,E3,E4))
 #         print("{}||{}".format(theta,pose))
 #         print("{}+{}-{}-{}={}".format(E1,E2,E3,E4,E1+E2-E3-E4))
 #         print(IMU_Val)
@@ -124,25 +124,26 @@ def PID_Controller(x,y,w):
     Vy = 0
     Wz = 0
     end_Flag = False
-    x_val,i1,endx = pidx.Calculate(x,cur_x,5)
-    y_val,i2,endy= pidy.Calculate(y,cur_y,5)
-    w_val,i3,endw = pidw.Calculate(w,cur_w,5,0.02,time.time())
-    x_limit = 20 if x_val < 20 else (abs(x)*(8+0.1+2)+1)
-    y_limit = 20 if y_val < 20 else (abs(y)*(8+0.1+5)+1)
-    w_limit = 20 if w_val < 20 else (abs(w)*(15+0.1+2)+1)
+    x_val,i1,endx = pidx.Calculate(x,cur_x,60)
+    y_val,i2,endy= pidy.Calculate(y,cur_y,60)
+    w_val,i3,endw = pidw.Calculate(w,cur_w,math.pi/4,0.04,0.04)
+    x_limit = 20 if x_val < 20 else (abs(x)*(5)+1)
+    y_limit = 20 if y_val < 20 else (abs(y)*(5)+1)
+    w_limit = 20 if w_val < 20 else (abs(w)*(5)+1)
     if x_val != 0:
-        Vx = map_values(x_val,-x_limit,x_limit,-0.3768,0.3768)
-        Vx = max(min(Vx, 0.3768), -0.3768)
+        Vx = map_values(x_val,-x_limit,x_limit,-0.35,0.35)
+        Vx = max(min(Vx, 0.25), -0.25)
     if y_val != 0:
-        Vy = map_values(y_val,-y_limit,y_limit,-0.3768,0.3768)
-        Vy = max(min(Vy, 0.3768), -0.3768)
+        Vy = map_values(y_val,-y_limit,y_limit,-0.35,0.35)
+        Vy = max(min(Vy, 0.25), -0.25)
     if w_val != 0:
         Wz = map_values(w_val,-w_limit,w_limit,-4,4)
         Wz = max(min(Wz, 4), -4)
 #     print("{}".format(endx))
-#     print(i3)
-#     print("{} {} {}".format(endx,endy,endw))
-    if endx and endy:
+    print("{} {} {}".format(i1,i2,i3))
+    
+#     print("{} {} {}".format(Vx,Vy,Wz))
+    if endx and endy and endw:
         end_Flag = True
     SendData(Vx,Vy,Wz)
     return end_Flag
@@ -152,9 +153,11 @@ def MoveRobot(type, dist, speed):
     global cur_x, cur_y, cur_w
     v = speed
     setpoint = dist
+    
     x = cur_x
     y = cur_y
     w = cur_w
+    
     if type == 0:
         x = setpoint + cur_x
     elif type == 1:
@@ -164,9 +167,9 @@ def MoveRobot(type, dist, speed):
         
     while True:
         flag = PID_Controller(x,y,w)
-        if flag:
-            print("done")
-            break
+#         if flag:
+#             print("done")
+#             break
     SendData(0,0,0)
     pidx.Reset()
     pidy.Reset()
@@ -210,26 +213,73 @@ if __name__ == '__main__':
         while True:
             if not end_flag:
     #                         MoveRobot(2,2*math.pi,0.2)
-                MoveRobot(0,40,0.3)
-                #MoveToCoord(40,0)
-            
+#                 MoveRobot(2,0.5*math.pi,0.3)
 #                 time.sleep(3)
-#             if not end_flag:
-#                 MoveRobot(1,-30,0.3)
-#                 MoveToCoord(15,15)
+                MoveToCoord(60,0)
+# #                 SendData(30,0,0)
+#                 time.sleep(4)
+# #             if not end_flag:
+#                 MoveRobot(0,90,0.3)
+#                 MoveToCoord(1,-1)
+#                 MoveToCoord(2,-2)
+#                 MoveToCoord(3,-3)
+#                 MoveToCoord(4,-4)
+#                 MoveToCoord(5,-5)
+#                 MoveToCoord(6,-6)
+#                 MoveToCoord(7,-7)
+#                 MoveToCoord(8,-8)
+#                 MoveToCoord(10,-10)
+#                 MoveToCoord(11,-10)
+#                 MoveToCoord(12,-10)
+#                 MoveToCoord(13,-10)
+#                 MoveToCoord(14,-10)
+#                 MoveToCoord(15,-10)
+#                 MoveToCoord(16,-10)
+#                 MoveToCoord(17,-10)
+#                 MoveToCoord(18,-10)
+#                 MoveToCoord(20,-10)
+#                 MoveToCoord(20,-11)
+#                 MoveToCoord(20,-12)
+#                 MoveToCoord(20,-13)
+#                 MoveToCoord(20,-14)
+#                 MoveToCoord(20,-15)
+#                 MoveToCoord(20,-16)
+#                 MoveToCoord(20,-17)
+#                 MoveToCoord(20,-18)
+#                 MoveToCoord(20,-19)
+#                 MoveToCoord(20,-20)
+#                 MoveToCoord(18,-21)
+#                 MoveToCoord(16,-22)
+#                 MoveToCoord(14,-23)
+#                 MoveToCoord(12,-24)
+#                 MoveToCoord(10,-25)
+#                 MoveToCoord(8,-26)
+#                 MoveToCoord(1,-27)
+#                 MoveToCoord(4,-28)
+#                 MoveToCoord(2,-29)
+#                 MoveToCoord(0,-30)
                 
-                print("completed seq1")
+#                 
+#                 print("completed seq1")
 #                 time.sleep(3)
-                
+#                 
 #                 MoveRobot(0,-30,0.25)
-#                 MoveToCoord(20,30)
-                
-                time.sleep(2)
-#                 MoveRobot(1,30,0.3)
-# #                 MoveRobot(2,math.pi,0.2)
+# #                 MoveToCoord(20,30)
 # #                 
 #                 time.sleep(2)
-#                 
+#                 MoveRobot(1,30,0.3)
+# # #                 MoveRobot(2,math.pi,0.2)
+# # #                 
+#                 time.sleep(2)
+#                 MoveRobot(2,-math.pi,0.2)
+#                 time.sleep(2)
+#                 MoveRobot(0,30,0.3)
+#                 time.sleep(2)
+#                 MoveRobot(1,30,0.3)
+#                 time.sleep(2)
+#                 MoveRobot(0,-30,0.3)
+#                 time.sleep(2)
+#                 MoveRobot(1,-30,0.3)
 #                 MoveToCoord(0,0)
                 end_flag=True
                 
@@ -255,4 +305,5 @@ if __name__ == '__main__':
         
     finally:
         GPIO.cleanup()
+
 
