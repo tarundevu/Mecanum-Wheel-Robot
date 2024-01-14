@@ -1,131 +1,156 @@
-import heapq
-import numpy as np
 import math
+import numpy as np
 
-class Node:
-    def __init__(self, x, y, obstacle=False):
-        self.x = x
-        self.y = y
+class Node():
+    def __init__(self, parent=None,coord=None, obstacle=False):
+        self.parent = parent
+        self.coord = coord
         self.obstacle = obstacle
-        self.g = float('inf')  # Cost from start
-        self.h = float('inf')  # Heuristic (estimated cost to goal)
-        self.f = float('inf')  # Total cost: g + h
-        self.parent = None
-
-    def __lt__(self, other):
-        return self.f < other.f
-
+        self.g = 0  # Cost from start
+        self.h = 0  # Heuristic (estimated cost to goal)
+        self.f = 0  # Total cost: g + h
+        
+    def __eq__(self, other):
+        return self.coord == other.coord
 
 class Map:
-    def __init__(self):
-        self.width_cm = 50
-        self.height_cm = 50
-        self.node_dist_cm = 2  # Distance between nodes in centimeters
+    def __init__(self,w,h,node_dist):
+        self.width_cm = w
+        self.height_cm = h
+        self.node_dist_cm = node_dist  # Distance between nodes in centimeters
 
         # Convert dimensions to number of nodes
-        self.width_nodes = self.width_cm // self.node_dist_cm
-        self.height_nodes = self.height_cm // self.node_dist_cm
+        self.tile_width = self.width_cm // self.node_dist_cm
+        self.tile_height = self.height_cm // self.node_dist_cm
 
         # Create an empty grid
-        self.grid = np.zeros((self.width_nodes, self.height_nodes))
-        self.obstacles = {(4, 0), (4, 1), (4, 2), (4, 3), (4, 4), (4, 6), (4, 5)}  # Set of obstacle nodes
+        self.grid = np.zeros((self.tile_width, self.tile_height))
+        self.obstacles = [(4, 0), (4, 1), (4, 2), (4, 3), (4, 4), (4, 6), (4, 5)]  # Set of obstacle nodes
 
-    def create_grid(self):
-        self.grid = [
-            [Node(x, y, obstacle=(x, y) in self.obstacles) for y in range(self.height_nodes)] 
-            for x in range(self.width_nodes)
-        ]
+    def addObstacles(self):
+        for row in range(len(self.obstacles)):
+            self.grid[self.obstacles[row][0],self.obstacles[row][1]] = 1
         return self.grid
+    
     def grid_to_realworld(self,x,y):
-        return x*self.node_dist_cm,y * self.node_dist_cm
+        return x*self.node_dist_cm, y * self.node_dist_cm
 
-def heuristic(node, goal, node_dist_cm):
-    # Modified heuristic to consider the distance between nodes
-    dx = abs(node.x - goal.x) * node_dist_cm
-    dy = abs(node.y - goal.y) * node_dist_cm
-    return dx + dy
-
-
-def astar(grid, start, goal, node_dist_cm):
-    open_set = []
-    closed_set = set()
-
-    heapq.heappush(open_set, start)
-    start.g = 0
-    start.h = heuristic(start, goal, node_dist_cm)
-    start.f = start.g + start.h
-
-    while open_set:
-        current = heapq.heappop(open_set)
-
-        if current == goal:
-            path = []
-            while current:
-                path.append((current.x, current.y))
-                current = current.parent
-            return path[::-1]
-
-        closed_set.add(current)
-
-        for neighbor in neighbors(grid, current):
-            if neighbor in closed_set or neighbor.obstacle:
-                continue
-
-            tentative_g = current.g + 1  # Assuming each step has a cost of 1
-
-            if tentative_g < neighbor.g:
-                neighbor.parent = current
-                neighbor.g = tentative_g
-                neighbor.h = heuristic(neighbor, goal, node_dist_cm)
-                neighbor.f = neighbor.g + neighbor.h
-
-                if neighbor not in open_set:
-                    heapq.heappush(open_set, neighbor)
-
-    return None  # No path found
+def getHeuristic(node, goal, node_dist_cm):
+    # odified heuristic to consider the distance between nodes
+    dist = math.dist(node.coord, goal.coord) * node_dist_cm
+    return dist
 
 
-def neighbors(grid, node):
+def getNeighbors(grid, node):
     neighbors = []
     directions = [(0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)]  # Right, Left, Down, Up, Diagonal
 
     for dx, dy in directions:
-        x, y = node.x + dx, node.y + dy
-        if 0 <= x < len(grid) and 0 <= y < len(grid[0]):
-            neighbors.append(grid[x][y])
+        x, y = node.coord[0] + dx, node.coord[1] + dy
+        # Make sure within range
+        if x > (len(grid) - 1) or x < 0 or y > (len(grid[len(grid)-1]) -1) or y < 0:
+            continue
+
+        # Make sure walkable terrain
+        if grid[x][y] != 0:
+            continue
+
+        new_node = Node(node,(x,y))
+        neighbors.append(new_node)
 
     return neighbors
 
 
+def astar(grid, start, end):
+    # initialize nodes
+    start_node = Node(None,start)
+    start_node.g = start_node.h = start_node.f = 0
+    end_node = Node(None,end)
+    end_node.g = end_node.h = end_node.f = 0
+
+    # initilaize open and closed lists
+    open_list = []
+    closed_list = []
+
+    # add start node to list
+    open_list.append(start_node)
+    
+
+    while len(open_list) > 0:
+        # current node is start node
+        current_node = open_list[0]
+        current_index = 0
+        for index, item in enumerate(open_list):
+            if item.f < current_node.f:
+                current_node = item
+                current_index = index
+
+        # Pop current off open list, add to closed list
+        open_list.pop(current_index)
+        closed_list.append(current_node)
+        
+
+        # if goal found
+        if current_node == end_node:
+            path = []
+            while current_node:
+                path.append(current_node.coord)
+                current_node = current_node.parent
+            return path[::-1]  # Return reversed path
+        
+        neighbors = getNeighbors(grid,current_node)
+        
+        for neighbor in neighbors:
+            if neighbor in closed_list or neighbor.obstacle:
+                continue
+
+            tentative_g = current_node.g + 1  # Assuming each step has a cost of 1
+            neighbor.parent = current_node
+            neighbor.g = tentative_g
+            neighbor.h = getHeuristic(neighbor, end_node, 1)  
+            neighbor.f = neighbor.g + neighbor.h
+
+            if neighbor not in open_list:
+                open_list.append(neighbor)
+    
+
 def print_path(grid, path):
-    for row in range(len(grid[0])):
-        for col in range(len(grid)):
-            if (col, row) in path:
-                print("* ", end="")
-            elif grid[col][row].obstacle:
-                print("X ", end="")
-            else:
-                print(". ", end="")
-        print()
-    for coord in path:
-        real_coord = map_instance.grid_to_realworld(coord[0],coord[1])
-        print(real_coord, end=" ")
-
-
-if __name__ == "__main__":
-    # Example usage
-    map_instance = Map()
-    grid = map_instance.create_grid()
-    start_node = Node(0, 0)
-    goal_node = Node(math.floor(10//map_instance.node_dist_cm-1),math.floor(50//map_instance.node_dist_cm-1))  # Adjust the goal coordinates based on the grid size
-    
-    
-    
-
-    path = astar(grid, grid[start_node.x][start_node.y], grid[goal_node.x][goal_node.y], map_instance.node_dist_cm)
-
     if path:
-        print("Path found:")
-        print_path(grid, path)
+        for col in range(len(grid[0])):
+            for row in range(len(grid)):
+                if (col, row) in path:
+                    print("* ", end="")
+                elif grid[col][row] == 1:
+                    print("X ", end="")
+                else:
+                    print(". ", end="")
+            print()
     else:
-        print("Invalid")
+        print("no path found")
+
+def main():
+    map = Map(10,10,1)
+    map.addObstacles()
+    grid = [[0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 1, 0, 0, 0, 0]]
+
+    start = (0, 0)
+    end = (5, 6)
+
+    path = astar(grid, start, end)
+    print_path(grid,path)
+    print(path)
+    
+    # print(map.grid)
+
+
+if __name__ == '__main__':
+    main()
