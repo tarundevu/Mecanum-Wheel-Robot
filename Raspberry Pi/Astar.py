@@ -14,7 +14,7 @@ class Node():
         return self.coord == other.coord
 
 class Map:
-    def __init__(self,w,h,node_dist):
+    def __init__(self,h,w,node_dist):
         self.width_cm = w
         self.height_cm = h
         self.node_dist_cm = node_dist  # Distance between nodes in centimeters
@@ -24,14 +24,59 @@ class Map:
         self.tile_height = self.height_cm // self.node_dist_cm
 
         # Create an empty grid
-        self.grid = np.zeros((self.tile_width, self.tile_height))
-        self.obstacles = [(4, 0), (4, 1), (4, 2), (4, 3), (4, 4), (4, 6), (4, 5)]  # Set of obstacle nodes
-
+        self.grid = np.zeros((self.tile_height, self.tile_width))
+        self.obstacles = []  # Set of obstacle nodes
+        self.expanded = []
+    def getGrid(self):
+        return self.grid
     def addObstacles(self):
         for row in range(len(self.obstacles)):
-            self.grid[self.obstacles[row][0],self.obstacles[row][1]] = 1
-        return self.grid
-    
+            x,y=self.obstacles[row][0],self.obstacles[row][1]
+            self.grid[x,y] = 1
+        for row in range(len(self.expanded)):
+            x,y=self.expanded[row][0],self.expanded[row][1]
+            self.grid[x,y] = 1
+        
+        
+    def createObs(self, x, y, w, h):
+        x,y = math.floor(x//self.node_dist_cm),math.floor(y//self.node_dist_cm)
+        w, h = math.floor(w//self.node_dist_cm),math.floor(h//self.node_dist_cm)
+        # newx,newy = int(x-math.ceil(h*0.5)), int(y-math.ceil(w*0.5))
+        
+        for i in range(-math.ceil(h/2), math.ceil(h/2)):
+            for j in range(-math.ceil(w/2), math.ceil(w/2)):
+                newx, newy = x + i, y + j
+                if 0 <= newx < np.size(self.grid, 0) and 0 <= newy < np.size(self.grid, 1):
+                    if (newx,newy) not in self.obstacles:
+                        self.obstacles.append((newx, newy))
+
+    def createObsRect(self,x1,y1,x2,y2):
+        x1,x2,y1,y2 = x1//self.node_dist_cm,x2//self.node_dist_cm,y1//self.node_dist_cm,y2//self.node_dist_cm
+        min_x,max_x = min(x1,x2), max(x1,x2)
+        min_y,max_y = min(y1,y2), max(y1,y2)
+        for x in range(min_x,max_x):
+            for y in range(min_y, max_y):
+                if (x,y) not in self.obstacles:
+                    self.obstacles.append((x,y))
+        
+            
+    def expandObs(self,dist):
+        newobs = []
+        directions=[(0,-1),(0,1),(-1,0),(1,0),(-1,-1),(-1,1),(1,-1),(1,1)]
+        dist = dist//self.node_dist_cm
+        
+        for x, y in self.obstacles:
+            for i in range(-dist, dist + 1):
+                for j in range(-dist, dist + 1):
+                    newx, newy = x + i, y + j
+                    if 0 <= newx < np.size(self.grid, 0) and 0 <= newy < np.size(self.grid, 1):
+                        if (newx, newy) not in newobs and (newx, newy) not in self.obstacles:
+                            newobs.append((newx, newy))
+                            
+        
+        self.expanded.extend(newobs)
+        
+                    
     def grid_to_realworld(self,x,y):
         return x*self.node_dist_cm, y * self.node_dist_cm
 
@@ -48,11 +93,11 @@ def getNeighbors(grid, node):
     for dx, dy in directions:
         x, y = node.coord[0] + dx, node.coord[1] + dy
         # Make sure within range
-        if x > (len(grid) - 1) or x < 0 or y > (len(grid[len(grid)-1]) -1) or y < 0:
+        if x > (np.size(grid,0) - 1) or x < 0 or y > (np.size(grid[np.size(grid,0)-1]) -1) or y < 0:
             continue
 
         # Make sure walkable terrain
-        if grid[x][y] != 0:
+        if grid[x,y] != 0:
             continue
 
         new_node = Node(node,(x,y))
@@ -91,7 +136,7 @@ def astar(grid, start, end):
         
 
         # if goal found
-        if current_node == end_node:
+        if current_node.coord == end_node.coord:
             path = []
             while current_node:
                 path.append(current_node.coord)
@@ -114,42 +159,61 @@ def astar(grid, start, end):
                 open_list.append(neighbor)
     
 
-def print_path(grid, path):
+def print_path(map, path):
+    
     if path:
-        for col in range(len(grid[0])):
-            for row in range(len(grid)):
-                if (col, row) in path:
+        for row in range(np.size(map.grid,0)):
+            for col in range(np.size(map.grid,1)):
+                if (row, col) in path:
                     print("* ", end="")
-                elif grid[col][row] == 1:
-                    print("X ", end="")
+                elif map.grid[row,col] == 1:
+                    if (row,col) in map.expanded:
+                        print("| ", end="")
+                    else:
+                        print("X ", end="")
                 else:
                     print(". ", end="")
             print()
+        print("")
+        for x, y in path:
+            print(map.grid_to_realworld(x,y))
     else:
         print("no path found")
-
-def main():
-    map = Map(10,10,1)
-    map.addObstacles()
-    grid = [[0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 1, 1, 0, 0, 0, 0]]
-
-    start = (0, 0)
-    end = (5, 6)
-
-    path = astar(grid, start, end)
-    print_path(grid,path)
-    print(path)
+        
+    print("")
     
-    # print(map.grid)
+    
+def main():
+    map = Map(200,150,2)
+    Grid = map.grid
+    #add boundaries
+    map.createObsRect(0,0,3,map.width_cm) #top
+    map.createObsRect(0,0,map.height_cm,3) #left
+    map.createObsRect(0,map.width_cm-3,map.height_cm,map.width_cm) #right
+    map.createObsRect(map.height_cm-3,0,map.height_cm,map.width_cm) #bottom
+    map.createObs(100,45,5,5)
+    map.expandObs(12)
+    map.addObstacles()
+    # grid = [[0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    #         [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    #         [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    #         [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    #         [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    #         [0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+    #         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    #         [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    #         [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    #         [0, 0, 0, 0, 1, 1, 0, 0, 0, 0]]
+
+    start = (math.floor(16//map.node_dist_cm-1),math.floor(16//map.node_dist_cm-1))
+    end = (math.floor(150//map.node_dist_cm-1),math.floor(50//map.node_dist_cm-1))
+
+    path = astar(Grid, start, end)
+    print_path(map,path)
+    
+    
+   # print(map.grid)
+    
 
 
 if __name__ == '__main__':
