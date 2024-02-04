@@ -10,7 +10,10 @@ import Odometry
 import threading
 import PID
 import IMU
+import Astar
 
+# Map
+StartPos = (0,0)
 # Variables & Objects
 enc1 = Encoder.Encoder(4,5,20.0)
 enc2 = Encoder.Encoder(6,12,20.0)
@@ -45,7 +48,7 @@ IMU_Val = (0.0,0.0,0.0,0.0,0.0,0.0)
 Robot_x = 0.0
 Robot_y = 0.0
 # PID
-pidx = PID.PID(10,0.5,10)
+pidx = PID.PID(8,0.5,10)
 pidy = PID.PID(10,0.5,10)
 pidw = PID.PID(5,0.01,8)
 timeint = 0
@@ -85,7 +88,7 @@ def updateOdometry():
 #         _x_, _y_, cur_w, theta = Robot.CalculateOdometry(cur_time)
         Robot_x, Robot_y = UpdatePosition(cur_x,cur_y,theta)
 #         print("{} :{}: {}:: {q}".format(cur_x,cur_y,cur_w,theta))
-#         print("{} : {} : {} :{} : {} : {}".format(Robot_x,Robot_y,cur_x,cur_y,cur_w,theta))
+        print(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {theta}")
         # Fused Odometry
 #                                                                                                                                                                print("{}:{}:{}::{}".format(E1,E2,E3,E4))
 #         print("{}:{}:{}::{}".format(E1,E2,E3,E4))
@@ -96,7 +99,7 @@ def updateOdometry():
             timeint += 1
         else:
             timeint = 0
-        #print("Roll:{:.2f} Pitch:{:.2f} Yaw:{:.2f}".format(Roll,Pitch,Yaw))
+        
         time.sleep(0.05)
 
 def UpdatePosition(x,y,theta):
@@ -119,17 +122,17 @@ def map_values(num, inMin, inMax, outMin, outMax):
     return outMin + (float(num - inMin) / float(inMax - inMin) * float(outMax - outMin))
 
 def PID_Controller(x,y,w):
-    global cur_x, cur_y, cur_w, pidx, pidy, pidw
+
     Vx = 0
     Vy = 0
     Wz = 0
     end_Flag = False
-    x_val,i1,endx = pidx.Calculate(x,cur_x,60)
-    y_val,i2,endy= pidy.Calculate(y,cur_y,60)
-    w_val,i3,endw = pidw.Calculate(w,cur_w,math.pi/4,0.04,0.04)
-    x_limit = 20 if x_val < 20 else (abs(x)*(5)+1)
-    y_limit = 20 if y_val < 20 else (abs(y)*(5)+1)
-    w_limit = 20 if w_val < 20 else (abs(w)*(5)+1)
+    x_val,i1,endx = pidx.Calculate(x,cur_x,(x+4)*0.75,'x')
+    y_val,i2,endy= pidy.Calculate(y,cur_y,(y+4)*0.75,'y')
+    w_val,i3,endw = pidw.Calculate(w,cur_w,math.pi/4,'w',0.04,0.04)
+    x_limit = 20 if x_val < 20 else (abs(x)*(5)+2)
+    y_limit = 20 if y_val < 20 else (abs(y)*(5)+2)
+    w_limit = 20 if w_val < 20 else (abs(w)*(5)+2)
     if x_val != 0:
         Vx = map_values(x_val,-x_limit,x_limit,-0.35,0.35)
         Vx = max(min(Vx, 0.25), -0.25)
@@ -139,37 +142,43 @@ def PID_Controller(x,y,w):
     if w_val != 0:
         Wz = map_values(w_val,-w_limit,w_limit,-4,4)
         Wz = max(min(Wz, 4), -4)
-#     print("{}".format(endx))
-    print("{} {} {}".format(i1,i2,i3))
-    
+
+#     print("{} {} {}".format(i1,i2,i3))
+#     print("{} {} {}".format(endx,endy,endw))
 #     print("{} {} {}".format(Vx,Vy,Wz))
+#     print("{} {} {}".format(x_val,y_val,w_val))
+    
     if endx and endy and endw:
         end_Flag = True
+
     SendData(Vx,Vy,Wz)
     return end_Flag
 
         
-def MoveRobot(type, dist, speed):
-    global cur_x, cur_y, cur_w
-    v = speed
+def MoveRobot(type, dist):
+    
     setpoint = dist
     
     x = cur_x
     y = cur_y
     w = cur_w
     
+    
     if type == 0:
         x = setpoint + cur_x
+        
     elif type == 1:
         y = setpoint + cur_y
+        
     elif type == 2:
-        w = setpoint + cur_w                                              
+        w = setpoint + cur_w
+        
         
     while True:
         flag = PID_Controller(x,y,w)
-#         if flag:
-#             print("done")
-#             break
+        if flag:
+            print("done")
+            break
     SendData(0,0,0)
     pidx.Reset()
     pidy.Reset()
@@ -177,7 +186,7 @@ def MoveRobot(type, dist, speed):
        
         
 def MoveToCoord(target_x, target_y):
-    global theta, end_flag
+#     global theta, end_flag
     angle = math.radians(theta)
     x = 0
     y = 0
@@ -190,10 +199,23 @@ def MoveToCoord(target_x, target_y):
         if flag:
             print("done")
             break
+    print("movetocoord done")
     SendData(0,0,0)
     pidx.Reset()
     pidy.Reset()
     pidw.Reset()
+
+def Move_Astar(target_x,target_y):
+    path = Astar.main(StartPos,(target_x,target_y))
+    
+    while not end_flag:
+        for x,y in path:
+            MoveToCoord(x,y)
+            path.remove((x,y))
+        
+        if (Robot_x >= (target_x-0.5) or Robot_x <= (-target_x+0.5)) and (Robot_y >= (target_y-0.5) or Robot_y <= (-target_y+0.5)):
+            print("successxxxxxxxxxxxxxxxxxxxxxxxxx")
+            break
     
         
 if __name__ == '__main__':
@@ -212,90 +234,20 @@ if __name__ == '__main__':
     try:
         while True:
             if not end_flag:
-    #                         MoveRobot(2,2*math.pi,0.2)
+    #               MoveRobot(2,2*math.pi,0.2)
 #                 MoveRobot(2,0.5*math.pi,0.3)
 #                 time.sleep(3)
-                MoveToCoord(60,0)
+#                 MoveToCoord(60,0)
 # #                 SendData(30,0,0)
 #                 time.sleep(4)
 # #             if not end_flag:
-#                 MoveRobot(0,90,0.3)
-#                 MoveToCoord(1,-1)
-#                 MoveToCoord(2,-2)
-#                 MoveToCoord(3,-3)
-#                 MoveToCoord(4,-4)
-#                 MoveToCoord(5,-5)
-#                 MoveToCoord(6,-6)
-#                 MoveToCoord(7,-7)
-#                 MoveToCoord(8,-8)
-#                 MoveToCoord(10,-10)
-#                 MoveToCoord(11,-10)
-#                 MoveToCoord(12,-10)
-#                 MoveToCoord(13,-10)
-#                 MoveToCoord(14,-10)
-#                 MoveToCoord(15,-10)
-#                 MoveToCoord(16,-10)
-#                 MoveToCoord(17,-10)
-#                 MoveToCoord(18,-10)
-#                 MoveToCoord(20,-10)
-#                 MoveToCoord(20,-11)
-#                 MoveToCoord(20,-12)
-#                 MoveToCoord(20,-13)
-#                 MoveToCoord(20,-14)
-#                 MoveToCoord(20,-15)
-#                 MoveToCoord(20,-16)
-#                 MoveToCoord(20,-17)
-#                 MoveToCoord(20,-18)
-#                 MoveToCoord(20,-19)
-#                 MoveToCoord(20,-20)
-#                 MoveToCoord(18,-21)
-#                 MoveToCoord(16,-22)
-#                 MoveToCoord(14,-23)
-#                 MoveToCoord(12,-24)
-#                 MoveToCoord(10,-25)
-#                 MoveToCoord(8,-26)
-#                 MoveToCoord(1,-27)
-#                 MoveToCoord(4,-28)
-#                 MoveToCoord(2,-29)
-#                 MoveToCoord(0,-30)
-                
-#                 
-#                 print("completed seq1")
-#                 time.sleep(3)
-#                 
-#                 MoveRobot(0,-30,0.25)
-# #                 MoveToCoord(20,30)
-# #                 
-#                 time.sleep(2)
-#                 MoveRobot(1,30,0.3)
-# # #                 MoveRobot(2,math.pi,0.2)
-# # #                 
-#                 time.sleep(2)
-#                 MoveRobot(2,-math.pi,0.2)
-#                 time.sleep(2)
 #                 MoveRobot(0,30,0.3)
-#                 time.sleep(2)
-#                 MoveRobot(1,30,0.3)
-#                 time.sleep(2)
-#                 MoveRobot(0,-30,0.3)
-#                 time.sleep(2)
-#                 MoveRobot(1,-30,0.3)
-#                 MoveToCoord(0,0)
+                Move_Astar(10,10)
+                print("astar****************")
+
                 end_flag=True
                 
-#                     SendData(0,0.08,0)
-#             time.sleep(2)
-#             if not end_flag:
-#                 MoveRobot(0,60,0.35)
-#                 end_flag=False
-#             time.sleep(2)
-#             if not end_flag:
-#                 MoveRobot(1,-60,0.35)
-#                 end_flag=False
-#             time.sleep(2)
-#             if not end_flag:
-#                 MoveRobot(0,-60,0.35)
-#                 end_flag=True
+#
             
             time.sleep(0.5)
 #             window_surface.blit(background, (0, 0))
@@ -305,5 +257,4 @@ if __name__ == '__main__':
         
     finally:
         GPIO.cleanup()
-
 

@@ -23,7 +23,6 @@ class Mpu():
         self.initial_yaw = yaw
         
     def getOdometry(self,data,cur_time):
-        pose = [0.0,0.0,0.0]
         yaw = data[2]
 
         ### heading, W ###

@@ -19,6 +19,7 @@ class PID():
 
     def Calculate(self,val,sensor_val,int_limit,end_con = 0.5,end_limit = 0.5):
         
+        
         self.setpoint = val
         measured_speed = sensor_val
 #         int_limit = int_limit if int_limit != 0 else abs(self.setpoint*(6/10))
@@ -48,7 +49,7 @@ class PID():
         # end condition if error is low, stop PID
         if error<=end_con and error>=-end_con:
             if (error - self.prev_error) > -end_con or (error - self.prev_error) < end_con:
-                #print(" running")
+                # print(" running")
                 end_flag = True
         else:
             #print("right")
