@@ -17,8 +17,7 @@ class PID():
         self.integral = 0
         
 
-    def Calculate(self,val,sensor_val,int_limit,end_con = 0.5,end_limit = 0.5):
-        
+    def Calculate(self,val,sensor_val,int_limit,debug,end_con = 0.5,end_limit = 0.5):
         
         self.setpoint = val
         measured_speed = sensor_val
@@ -29,16 +28,16 @@ class PID():
         # proportional
         proportional = self.Kp * error
         # integral only
-        if error>=-int_limit and error<=int_limit and self.Ki!=0:
-            self.total_error += error
-            self.integral = (self.Ki * self.total_error)
+#         if error>=-int_limit and error<=int_limit and self.Ki!=0:
+#             print(debug)
+        self.total_error += error
+        self.integral = (self.Ki * self.total_error)
 #             print("runing")
-            # limit integral
-            self.integral = max(min(self.integral, abs(val*10)), -abs(val*10))
-            # if error is low stop integral
-            if error>=-end_limit and error<=end_limit:
-                self.total_error = 0
-        else:
+        # limit integral
+        self.integral = max(min(self.integral, abs((val+0.1)*10)), -abs((val+0.1)*10))
+        # if error is low stop integral
+        if error>=-end_limit and error<=end_limit:
+            self.total_error = 0
             self.integral = 0
         # derivative   
         derivative = self.Kd * (error - self.prev_error)
@@ -49,7 +48,7 @@ class PID():
         # end condition if error is low, stop PID
         if error<=end_con and error>=-end_con:
             if (error - self.prev_error) > -end_con or (error - self.prev_error) < end_con:
-                # print(" running")
+                #print(" running")
                 end_flag = True
         else:
             #print("right")
@@ -60,6 +59,7 @@ class PID():
         return float(new_value), float(self.integral), bool(end_flag)
     
     def Reset(self):
+        self.setpoint = 0
         self.error = 0
         self.prev_error = 0
         self.total_error = 0
