@@ -207,11 +207,25 @@ def print_path(map, path):
         print("no path found")
         
     print("")
+    return true_path
+
+def collinear(p1,p2,p3):
+    return (p2[1]-p1[1])*(p3[0]-p2[0]) == (p3[1]-p2[1])*(p2[0]-p1[0])
+
+def simplify_path(path):
+    simplified_path = list()
+    simplified_path.append(path[0])
     
-    
+    for i in range(1,len(path)-1):
+        if not collinear(path[i-1],path[i],path[i+1]):
+            simplified_path.append(path[i])
+    simplified_path.append(path[-1])
+    return simplified_path
+
+
 def main():
     st = time.time()
-    map = Map(180,120,5)
+    map = Map(180,120,2)
     Grid = map.grid
     # root = tk.Tk()
     # root.title("A* Grid Map")
@@ -239,8 +253,9 @@ def main():
     # gui.draw_grid_map()
     # root.mainloop()
     
-    print_path(map,path)
-    
+    p = print_path(map,path)
+    t = simplify_path(p)
+    print(t)
     print("The time of execution of above program is :",(end-st) * 10**3, "ms")
     
    # print(map.grid)
