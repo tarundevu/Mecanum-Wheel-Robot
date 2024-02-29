@@ -165,15 +165,11 @@ void loop() {
     float roll = ypr[2] * 180/M_PI;
     float pitch = ypr[1] * 180/M_PI;
     float yaw = ypr[0] * 180/M_PI;
-    float  acc_x = 0;
-    float acc_y = 0;
-    float acc_z = 0;
+    
     Serial.write((byte*)&roll,sizeof(roll));
     Serial.write((byte*)&pitch,sizeof(pitch));
     Serial.write((byte*)&yaw,sizeof(yaw));
-    Serial.write((byte*)&acc_x,sizeof(acc_x));
-    Serial.write((byte*)&acc_y,sizeof(acc_y));
-    Serial.write((byte*)&acc_z,sizeof(acc_z));
+ 
   
     
   }
@@ -204,15 +200,10 @@ void SendData(){
          float roll = ypr[2] * 180/M_PI;
           float pitch = ypr[1] * 180/M_PI;
           float yaw = ypr[0] * 180/M_PI;
-         float  acc_x = 0;
-          float acc_y = 0;
-          float acc_z = 0;
+         
   Serial.write((byte*)&roll,sizeof(roll));
   Serial.write((byte*)&pitch,sizeof(pitch));
   Serial.write((byte*)&yaw,sizeof(yaw));
-  Serial.write((byte*)&acc_x,sizeof(acc_x));
-  Serial.write((byte*)&acc_y,sizeof(acc_y));
-  Serial.write((byte*)&acc_z,sizeof(acc_z));
 //    Serial.println(yaw);
 }
 /*
