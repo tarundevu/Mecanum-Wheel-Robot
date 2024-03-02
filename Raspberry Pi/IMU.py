@@ -7,12 +7,7 @@ class Mpu():
         self.Roll  = 0.0
         self.Pitch  = 0.0
         self.Yaw  = 0.0
-        self.acc_x = 0.0
-        self.acc_y = 0.0
-        self.acc_z = 0.0
         self.heading = 0.0
-        self.cur_x = 0.0
-        self.cur_y = 0.0
         self.cur_w = 0.0
         self.initial_yaw = 0.0
         self.prev_yaw = 0.0
@@ -22,8 +17,8 @@ class Mpu():
     def setInitialYaw(self,yaw):
         self.initial_yaw = yaw
         
-    def getOdometry(self,data,cur_time):
-        yaw = data[2]
+    def getOdometry(self,data):
+        yaw = data[0]
 
         ### heading, W ###
         calibrated_yaw = yaw - self.initial_yaw
@@ -45,6 +40,6 @@ class Mpu():
         self.heading = round(calibrated_yaw,2)
         
         self.prev_yaw = calibrated_yaw
-        self.prev_time = cur_time
+        # self.prev_time = cur_time
 
         return round(math.radians(self.cur_w),2), float(self.heading) 

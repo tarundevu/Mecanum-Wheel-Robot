@@ -87,37 +87,17 @@ void setup() {
     mpu.setZGyroOffset(-36);
     mpu.setZAccelOffset(8943); // 1688 factory default for my test chip
 
-    // make sure it worked (returns 0 if so)
+    
     if (devStatus == 0) {
         // Calibration Time: generate offsets and calibrate our MPU6050
         mpu.CalibrateAccel(6);
         mpu.CalibrateGyro(6);
-//        mpu.PrintActiveOffsets();
-        // turn on the DMP, now that it's ready
-//        Serial.println(F("Enabling DMP..."));
         mpu.setDMPEnabled(true);
-
-        // enable Arduino interrupt detection
-        //Serial.print(F("Enabling interrupt detection (Arduino external interrupt "));
-        //Serial.print(digitalPinToInterrupt(INTERRUPT_PIN));
-//        Serial.println(F(")..."));
         attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
         mpuIntStatus = mpu.getIntStatus();
-        // set our DMP Ready flag so the main loop() function knows it's okay to use it
-        //Serial.println(F("DMP ready! Waiting for first interrupt..."));
         dmpReady = true;
-        // get expected DMP packet size for later comparison
         packetSize = mpu.dmpGetFIFOPacketSize();
     } 
-//    else {
-//        // ERROR!
-//        // 1 = initial memory load failed
-//        // 2 = DMP configuration updates failed
-//        // (if it's going to break, usually the code will be 1)
-////        Serial.print(F("DMP Initialization failed (code "));
-////        Serial.print(devStatus);
-////        Serial.println(F(")"));
-//    }
 
 }
 
@@ -147,19 +127,10 @@ void loop() {
           mpu.dmpGetQuaternion(&q, fifoBuffer);
           mpu.dmpGetGravity(&gravity, &q);
           mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-//           Serial.print("ypr\t");
-//           Serial.print(ypr[0] * 180/M_PI);
-//           Serial.print("\t");
-//           Serial.print(ypr[1] * 180/M_PI);
-//           Serial.print("\t");
-//           Serial.println(ypr[2] * 180/M_PI);
-          
-         
-          //Serial.println(yaw);
           
       #endif
   }
-  // Transmitter
+  // Transmitter- send IMU data every 100ms
   if ((now - inittime)>=100){
     inittime = now;
     float roll = ypr[2] * 180/M_PI;
@@ -169,42 +140,16 @@ void loop() {
     Serial.write((byte*)&roll,sizeof(roll));
     Serial.write((byte*)&pitch,sizeof(pitch));
     Serial.write((byte*)&yaw,sizeof(yaw));
- 
-  
-    
+
   }
-//    Serial.println("hi");
   MoveRobot(Vx,Vy,Wz);
   
-  
-  
 //  motor2.drive(speedToPWM(Vy)); 
 //  motor2.drive(speedToPWM(Vy)); 
-//    motor3.drive(speedToPWM(Vy)); 
+//  motor3.drive(speedToPWM(Vy)); 
 //  motor4.drive(speedToPWM(Vy)); 
-//   Serial.println(speedToPWM(Vx));
+//  Serial.println(speedToPWM(Vx));
    
-}
-/*
- * Sends IMU data over to the PI
- */
-void SendData(){
-//  float roll ;
-//          float pitch =0.0;
-//          float yaw =0.0;
-//          float acc_x =0.0;
-//          float acc_y =0.0;
-//          float acc_z =0.0;
-//  fusion.newIMUData(imu->getGyro(), imu->getAccel(), imu->getCompass(), imu->getTimestamp());
-  
-         float roll = ypr[2] * 180/M_PI;
-          float pitch = ypr[1] * 180/M_PI;
-          float yaw = ypr[0] * 180/M_PI;
-         
-  Serial.write((byte*)&roll,sizeof(roll));
-  Serial.write((byte*)&pitch,sizeof(pitch));
-  Serial.write((byte*)&yaw,sizeof(yaw));
-//    Serial.println(yaw);
 }
 /*
  * Converts velocity to PWM value

@@ -7,7 +7,7 @@ import Astar
 import IMU
 
 # Map
-StartPos = (0,0)
+StartPos = (16,16)
 # Variables & Objects
 end_flag = False
 init_yaw = False
@@ -23,8 +23,8 @@ V3 = 0.0
 V4 = 0.0
 # Robot Odometry
 Robot_IMU = IMU.Mpu()
-cur_x = 0.0
-cur_y = 0.0
+cur_x = 0.0 +  StartPos[0]
+cur_y = 0.0 +  StartPos[1]
 cur_w = 0.0 # Z distance
 theta = 0.0 # heading
 # Fused Odometry
@@ -48,14 +48,14 @@ newvalw = 0.0
 
 def updateOdometry():
     # global cur_x, cur_y, cur_w, theta, E1, E2, E3, E4,V1,V2,V3,V4, IMU_Val, init_yaw, timeint, Robot_x,Robot_y
-    global cur_w
+    global cur_w, Robot_x,Robot_y
     while True:
-        cur_w,th = Robot_IMU.getOdometry([0,0,theta],time.time())
+        cur_w,th = Robot_IMU.getOdometry([0,0,theta])
         Robot_x, Robot_y = UpdatePosition(cur_x,cur_y,th)
         
         print(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {th}")
         
-        time.sleep(0.1)
+        time.sleep(0.05)
 def GUI_start():
     
     def addCury():
@@ -98,6 +98,9 @@ def GUI_start():
     window = tk.Tk()
     window.title('ROBOT DROID TEST CONSOLE')
     bg = tk.Canvas(window, width=400,height=330 )
+    icon_small = tk.PhotoImage(file='C:/github/Mecanum-Wheel-Robot/Raspberry Pi/rover.png')
+    icon_large = tk.PhotoImage(file='C:/github/Mecanum-Wheel-Robot/Raspberry Pi/rover_large.png')
+    window.iconphoto(False,icon_large,icon_small)
     window.resizable(False,False)
     curYbutton_up = tk.Button(window,bg="light grey",fg="black",text='\u2303',height=1,width=1,command=addCury)
     curYbutton_down = tk.Button(window,bg="light grey",fg="black",text='\u2304',height=1,width=1,command=subCury)
@@ -114,15 +117,39 @@ def GUI_start():
     label_x = tk.Label(window,background="white",borderwidth=1,anchor="center",text=round(cur_x,2))
     label_y = tk.Label(window,background="white",borderwidth=1,anchor="center",text=round(cur_y,2))
     label_w = tk.Label(window,background="white",borderwidth=1,anchor="center",text=round(cur_w,2))
-    label_RY = tk.Label(window,background="white",borderwidth=1,anchor="center",text=round(int1,2))
-    label_RX = tk.Label(window,background="white",borderwidth=1,anchor="center",text=round(int2,2))
-    label_theta = tk.Label(window,background="white",borderwidth=1,anchor="center",text=round(int3,2))
+    label_RY = tk.Label(window,background="white",borderwidth=1,anchor="center",text=round(Robot_x,2))
+    label_RX = tk.Label(window,background="white",borderwidth=1,anchor="center",text=round(Robot_y,2))
+    label_theta = tk.Label(window,background="white",borderwidth=1,anchor="center",text=round(theta,2))
     label_nx = tk.Label(window,background="white",borderwidth=1,anchor="center",text=round(newvalx,2))
     label_ny = tk.Label(window,background="white",borderwidth=1,anchor="center",text=round(newvaly,2))
     label_nw = tk.Label(window,background="white",borderwidth=1,anchor="center",text=round(newvalw,2))
     label_int1 = tk.Label(window,background="white",borderwidth=1,anchor="center",text=round(int1,2))
     label_int2 = tk.Label(window,background="white",borderwidth=1,anchor="center",text=round(int2,2))
     label_int3 = tk.Label(window,background="white",borderwidth=1,anchor="center",text=round(int3,2))
+    x = tk.Label(borderwidth=1,anchor="center",text="cur x")
+    y = tk.Label(borderwidth=1,anchor="center",text="cur y")
+    w = tk.Label(borderwidth=1,anchor="center",text="cur w")
+    robot_x = tk.Label(borderwidth=1,anchor="center",text="robot x")
+    robot_y = tk.Label(borderwidth=1,anchor="center",text="robot y")
+    robot_th = tk.Label(borderwidth=1,anchor="center",text="theta")
+    new_x = tk.Label(borderwidth=1,anchor="center",text="new x")
+    new_y = tk.Label(borderwidth=1,anchor="center",text="new y")
+    new_w = tk.Label(borderwidth=1,anchor="center",text="new w")
+    int_1 = tk.Label(borderwidth=1,anchor="center",text="int 1")
+    int_2 = tk.Label(borderwidth=1,anchor="center",text="int 2")
+    int_3 = tk.Label(borderwidth=1,anchor="center",text="int 3")
+    x.place(x=30,y=50)
+    y.place(x=30,y=75)
+    w.place(x=30,y=100)
+    robot_x.place(x=90,y=50)
+    robot_y.place(x=90,y=75)
+    robot_th.place(x=90,y=100)
+    new_x.place(x=160,y=50)
+    new_y.place(x=160,y=75)
+    new_w.place(x=160,y=100)
+    int_1.place(x=235,y=50)
+    int_2.place(x=235,y=75)
+    int_3.place(x=235,y=100)
     label_x.place(x=66,y=50)
     label_y.place(x=66,y=75)
     label_w.place(x=66,y=100)
@@ -141,9 +168,12 @@ def GUI_start():
     
 
 def UpdatePosition(x,y,theta):
-    t = math.radians(theta)
-    r_x = math.cos(t)*x + math.sin(t)*y
-    r_y = -math.sin(t)*x + math.cos(t)*y
+    rad = math.radians
+    cos = math.cos
+    sin = math.sin
+    t = rad(theta)
+    r_x = cos(t)*x + sin(t)*y
+    r_y = -sin(t)*x + cos(t)*y
     
     return round(r_x,2),round(r_y,2)
 
@@ -152,15 +182,16 @@ def map_values(num, inMin, inMax, outMin, outMax)->float:
 
 def PID_Controller(x,y,w):
     global int1,int2,int3,newvalx,newvaly,newvalw
-    Vx = 0
-    Vy = 0
-    Wz = 0
+    Vx = 0.0
+    Vy = 0.0
+    Wz = 0.0
+    
     end_Flag = False
     init_x,init_y,init_w = x-cur_x,y-cur_y,w-cur_w
     while not end_Flag:
         x_val,i1,endx = pidx.Calculate(x,cur_x,(x+4)*0.75)
         y_val,i2,endy= pidy.Calculate(y,cur_y,(y+4)*0.75)
-        w_val,i3,endw = pidw.Calculate(w,cur_w,math.pi/4,0.04,0.04)
+        w_val,i3,endw = pidw.Calculate(w,cur_w,math.pi/4,0.02,0.02)
         int1,int2,int3 = i1,i2,i3
         newvalx,newvaly,newvalw = x_val,y_val,w_val
         x_limit,y_limit,w_limit = abs(init_x+0.001)*20, abs(init_y+0.001)*20, abs(w_val)*10
@@ -180,7 +211,7 @@ def PID_Controller(x,y,w):
 #     print("{}".format(endx))
     # print("working")
         
-    # print("{} {} {}".format(x_val,y_val,w_val))
+        # print("{} {} {}".format(y,y_val,w_val))
     # print("{} {} {}".format(x_limit,y_limit,w_limit))
     # print("{} {} {}".format(Vx,Vy,Wz))
     
@@ -237,7 +268,8 @@ def Move_Astar(target_x,target_y):
     while not end_flag:
         for x,y in path:
             MoveToCoord(x,y)
-            path.remove((x,y))
+            print(x,y)
+            # path.remove((x,y))
         
         if path==None:
             print("xxxxxxxxxxxxxxxxxxxxxxxxxx_Astar Seq Complete_xxxxxxxxxxxxxxxxxxxxxxxxx")
@@ -256,8 +288,10 @@ if __name__ == '__main__':
     time.sleep(3)
     try:
         
-        while True:
-            MoveRobot(0,30)
+        while not end_flag:
+            # 
+            Move_Astar(160,90)
+            end_flag=True
             
             time.sleep(0.5)
     except KeyboardInterrupt:

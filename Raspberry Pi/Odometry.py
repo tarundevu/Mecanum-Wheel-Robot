@@ -3,7 +3,7 @@ import math
 import Encoder
 # import Main
 import RPi.GPIO as GPIO
-
+#
 class Mecanum_Drive():
     def __init__(self,E1,E2,E3,E4):
         self.prev_time = 0
@@ -28,15 +28,12 @@ class Mecanum_Drive():
         y = format(y,".2f")
         #self.y_Dist = y
         return float(y)
-    def getzDist(self, E1,E2,E3,E4,cur_w):
+    def getzDist(self, E1,E2,E3,E4,cur_w): # not in use
         # theta = (1/51.6)*(self.Enc1.getDist()-self.Enc2.getDist()+self.Enc3.getDist()-self.Enc4.getDist())
         delta_FL = self.Enc1.getDist() 
         delta_RL = self.Enc3.getDist()
         delta_FR = self.Enc2.getDist()
         delta_RR = self.Enc4.getDist()
-
-#         delta_L = (delta_FL + delta_RL) / 2
-#         delta_R = (delta_FR + delta_RR) / 2
 
         delta_theta = (-(delta_FR + delta_RR)+(delta_FL + delta_RL)) / 4.0
         theta = delta_theta
@@ -46,11 +43,11 @@ class Mecanum_Drive():
             theta = theta + 3.141*2
         else:
             theta = theta + 0
-#         theta = math.atan2(math.sin(theta), math.cos(theta))
+            
         theta = format(theta,".2f")
         return float(theta)
     
-    def CalculateOdometry(self,current_time):
+    def CalculateOdometry(self,current_time): # not in use
         radius = 0.03
         lx = 0.068
         ly = 0.061

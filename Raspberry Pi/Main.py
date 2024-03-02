@@ -75,7 +75,7 @@ def updateOdometry():
             
         
         # IMU
-        pose, theta = Robot_IMU.getOdometry(IMU_Val,cur_time)
+        pose, theta = Robot_IMU.getOdometry(IMU_Val)
         # Odometry
         cur_x = Robot.getxDist() + StartPos[0]
         cur_y = Robot.getyDist() + StartPos[1]
@@ -88,7 +88,6 @@ def updateOdometry():
 #         V2 = enc2.getVel()
 #         V3 = enc3.getVel()
 #         V4 = enc4.getVel()
-#         _x_, _y_, cur_w, theta = Robot.CalculateOdometry(cur_time)
         Robot_x, Robot_y = UpdatePosition(cur_x,cur_y,theta)
 #         print("{} :{}: {}:: {q}".format(cur_x,cur_y,cur_w,theta))
 #         print(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {theta}")

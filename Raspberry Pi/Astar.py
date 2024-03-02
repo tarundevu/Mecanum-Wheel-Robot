@@ -76,8 +76,8 @@ class Map:
         
         
                     
-    def grid_to_realworld(self,x,y):
-        return x*self.node_dist_cm, y * self.node_dist_cm
+    def grid_to_realworld(self,coord):
+        return coord[0]*self.node_dist_cm, coord[1] * self.node_dist_cm
 class AStarGridMapGUI:
     def __init__(self, root, map, path):
         self.root = root
@@ -182,37 +182,13 @@ def astar(grid, start, end):
             if neighbor not in open_list:
                 open_list.append(neighbor)
     
-
-def print_path(map, path):
-    grid = map.grid
-    exp = map.expanded
-    convert_coord = map.grid_to_realworld
-    if path:
-        for row in range(size(grid,0)):
-            for col in range(size(grid,1)):
-                if (row, col) in path:
-                    print("* ", end="")
-                elif grid[row,col] == 1:
-                    if (row,col) in exp:
-                        print("| ", end="")
-                    else:
-                        print("X ", end="")
-                else:
-                    print(". ", end="")
-            print()
-        print("")
-        true_path = [convert_coord(x,y) for x,y in path]
-        print(true_path)
-    else:
-        print("no path found")
-        
-    print("")
-    return true_path
-
 def collinear(p1,p2,p3):
     return (p2[1]-p1[1])*(p3[0]-p2[0]) == (p3[1]-p2[1])*(p2[0]-p1[0])
 
 def simplify_path(path):
+    if len(path)<3:
+        return path
+    
     simplified_path = list()
     simplified_path.append(path[0])
     
@@ -222,43 +198,69 @@ def simplify_path(path):
     simplified_path.append(path[-1])
     return simplified_path
 
-
-def main():
+def print_path(_map, path):
+    grid = _map.grid
+    exp = _map.expanded
+    convert_coord = _map.grid_to_realworld
+    if path:
+#         for row in range(size(grid,0)):
+#             for col in range(size(grid,1)):
+#                 if (row, col) in path:
+#                     print("* ", end="")
+#                 elif grid[row,col] == 1:
+#                     if (row,col) in exp:
+#                         print("| ", end="")
+#                     else:
+#                         print("X ", end="")
+#                 else:
+#                     print(". ", end="")
+#             print()
+#         print("")
+#         true_path = [convert_coord(coord) for coord in path]
+        print("path found")
+        true_path = list(map(convert_coord,path))
+        true_path = simplify_path(true_path)
+#         print(true_path)
+        return true_path
+    else:
+        print("no path found")
+        
+    print("")
+    
+    
+def main(start_pos=(16,16),end_pos=(140,60)):
     st = time.time()
     map = Map(180,120,2)
     Grid = map.grid
-    # root = tk.Tk()
-    # root.title("A* Grid Map")
-
-    
-
+#     root = tk.Tk()
+#     root.title("A* Grid Map")
     #add boundaries
-
     map.createObsRect(0,0,3,map.width_cm) #top
     map.createObsRect(0,0,map.height_cm,3) #left
-    map.createObsRect(0,(map.width_cm)-3,map.height_cm,(map.width_cm)) #right
-    map.createObsRect(map.height_cm,0,map.height_cm-3,map.width_cm) #bottom
-    map.createObs(100,75,30,30)
-    map.expandObs(12)
+    map.createObsRect(0,map.width_cm-3,map.height_cm,map.width_cm) #right
+    map.createObsRect(map.height_cm-3,0,map.height_cm,map.width_cm) #bottom
+    map.createObs(75,60,30,30)
+    map.createObs(135,90,15,15)
+    map.expandObs(15)
     map.addObstacles()
 
-    
-
-    start = (round(16/map.node_dist_cm),round(16/map.node_dist_cm))
-    end = ((140//map.node_dist_cm),(60//map.node_dist_cm))
+    start = (round(start_pos[0]/map.node_dist_cm),round(start_pos[1]/map.node_dist_cm))
+    end = (end_pos[0]//map.node_dist_cm,end_pos[1]//map.node_dist_cm)
 
     path = astar(Grid, start, end)
-    end = time.time()
-    # gui = AStarGridMapGUI(root, map, path)
-    # gui.draw_grid_map()
-    # root.mainloop()
-    
+#     gui = AStarGridMapGUI(root, map, path)
+#     gui.draw_grid_map()
+#     root.mainloop()
     p = print_path(map,path)
-    t = simplify_path(p)
-    print(t)
-    print("The time of execution of above program is :",(end-st) * 10**3, "ms")
+    end = time.time()
+#     print("The time of execution of above program is :",(end-st) * 10**3, "ms")
+#     print(p)
+    return p
+    
     
    # print(map.grid)
+    
+
 
 if __name__ == '__main__':
     main()
