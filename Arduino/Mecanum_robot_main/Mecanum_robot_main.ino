@@ -137,8 +137,8 @@ void loop() {
     float pitch = ypr[1] * 180/M_PI;
     float yaw = ypr[0] * 180/M_PI;
     
-    Serial.write((byte*)&roll,sizeof(roll));
-    Serial.write((byte*)&pitch,sizeof(pitch));
+    // Serial.write((byte*)&roll,sizeof(roll));
+    // Serial.write((byte*)&pitch,sizeof(pitch));
     Serial.write((byte*)&yaw,sizeof(yaw));
 
   }

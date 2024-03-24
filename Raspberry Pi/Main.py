@@ -44,7 +44,7 @@ imu_y = 0.0
 imu_w = 0.0
 # Fused Odometry
 # IMU Data
-IMU_Val = (0.0,0.0,0.0)
+IMU_Val = [0.0]
 # Robot Position
 Robot_x = 0.0
 Robot_y = 0.0
@@ -63,14 +63,14 @@ def updateOdometry():
         # Serial comm
         if ser.in_waiting >=12:
             imudata = ser.read(12)
-            IMU_Val = struct.unpack('fff',imudata)
+            IMU_Val = struct.unpack('f',imudata)
             end_time = time.time()
 #             print("ok")
         if timeint>10:
             if not init_yaw:
-                Robot_IMU.setInitialYaw(IMU_Val[2])
+                Robot_IMU.setInitialYaw(IMU_Val[0])
                 print("Yaw Calibrated")
-                print(IMU_Val[2])
+                print(IMU_Val[0])
             init_yaw = True
             
         
@@ -92,12 +92,11 @@ def updateOdometry():
 #         print("{} :{}: {}:: {q}".format(cur_x,cur_y,cur_w,theta))
 #         print(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {theta}")
 #         print("The time of execution of above program is :",(end_time-cur_time) * 10**3, "ms")
-        # Fused Odometry
-#                                                                                                                                                                print("{}:{}:{}::{}".format(E1,E2,E3,E4))
+                                                                                                                               
 #         print("{}:{}:{}::{}".format(E1,E2,E3,E4))
 #         print("{}||{}".format(theta,pose))
 #         print("{}+{}-{}-{}={}".format(E1,E2,E3,E4,E1+E2-E3-E4))
-#         print(IMU_Val)
+
         if not init_yaw:   
             timeint += 1
         else:
@@ -125,7 +124,11 @@ def SendData(Vx,Vy,Wz):
         print(f"An unexpected error occurred: {e}")
 
 def map_values(num, inMin, inMax, outMin, outMax):
-    return outMin + (float(num - inMin) / float(inMax - inMin) * float(outMax - outMin))
+    try:
+        val = outMin + (float(num - inMin) / float(inMax - inMin) * float(outMax - outMin))
+    except ZeroDivisionError as e:
+        print(f"Error: {e}")
+    return val
 
 def PID_Controller(x,y,w):
 
@@ -137,25 +140,26 @@ def PID_Controller(x,y,w):
     y_diff = y - cur_y
     w_diff = w - cur_w
     while not end_Flag:
-        x_val,i1,endx = pidx.Calculate(x,cur_x,(x+4)*0.75,'x')
-        y_val,i2,endy = pidy.Calculate(y,cur_y,(y+4)*0.75,'y')
-        w_val,i3,endw = pidw.Calculate(w,cur_w,math.pi/4,'w',0.02,0.02)
+        x_val,i1,endx = pidx.Calculate(x,cur_x)
+        y_val,i2,endy = pidy.Calculate(y,cur_y)
+        w_val,i3,endw = pidw.Calculate(w,cur_w,0.02,0.02)
+        # PID limits
         x_limit = abs(x_diff+0.01)*20
         y_limit = abs(y_diff+0.01)*20
         w_limit = abs(w_diff+0.001)*10
+        # speed limits
         x_spd_lim = 0.1 if abs(x_diff)<30 else 0.2
         y_spd_lim = 0.1 if abs(y_diff)<30 else 0.2 
         w_spd_lim = 0.5 if abs(w)<=math.pi/2 else 2.5
         if x_val != 0:
             Vx = map_values(x_val,-x_limit,x_limit,-x_spd_lim,x_spd_lim)
-            Vx = max(min(Vx, x_spd_lim), -x_spd_lim)
+            Vx = max(min(Vx, x_spd_lim), -x_spd_lim) # constrain speed
         if y_val != 0:
             Vy = map_values(y_val,-y_limit,y_limit,-y_spd_lim,y_spd_lim)
-            Vy = max(min(Vy, y_spd_lim), -y_spd_lim)
+            Vy = max(min(Vy, y_spd_lim), -y_spd_lim) # constrain speed
         if w_val != 0:
-#             print(w_limit,-w_limit)
             Wz = map_values(w_val,-w_limit,w_limit,-w_spd_lim,w_spd_lim)
-            Wz = max(min(Wz, w_spd_lim), -w_spd_lim)
+            Wz = max(min(Wz, w_spd_lim), -w_spd_lim) # constrain speed
             
 #         print("{} {} {}".format(i1,i2,i3))
 #         print("{} {} {}".format(endx,endy,endw))
@@ -182,7 +186,6 @@ def MoveRobot(type, dist):
     y = cur_y
     w = cur_w
     
-    
     if type == 0:
         x = setpoint + cur_x
         
@@ -192,12 +195,8 @@ def MoveRobot(type, dist):
     elif type == 2:
         w = setpoint + cur_w
         
-        
-#     while True:
     PID_Controller(x,y,w)
-#         if flag:
-#             print("done")
-#             break
+
     SendData(0,0,0)
     pidx.Reset()
     pidy.Reset()
@@ -229,8 +228,7 @@ def Move_Astar(target_x,target_y):
         while not end_flag:
             for x,y in path:
                 MoveToCoord(x,y,init_w)
-                print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
-                path.remove((x,y))
+                # print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
                 time.sleep(0.01)
             
             break
@@ -248,8 +246,6 @@ if __name__ == '__main__':
     update_odometry_thread = threading.Thread(target=updateOdometry)
     update_odometry_thread.daemon = True
     update_odometry_thread.start()
-    #initialize yaw
-    #Robot_IMU.setInitialYaw(IMU_Val[2])
     time.sleep(3)
     try:
         while True:
@@ -274,11 +270,8 @@ if __name__ == '__main__':
 #                 print("astar****************")
 
                 end_flag=True
-                
-#
-            
+
             time.sleep(0.5)
-#             window_surface.blit(background, (0, 0))
     except KeyboardInterrupt:
         SendData(0,0,0)
         print("Exiting...")

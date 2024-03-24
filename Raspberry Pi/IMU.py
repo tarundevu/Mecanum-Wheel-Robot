@@ -12,7 +12,6 @@ class Mpu():
         self.initial_yaw = 0.0
         self.prev_yaw = 0.0
         self.prev_time = 0.0
-        self.cal = 10
     
     def setInitialYaw(self,yaw):
         self.initial_yaw = yaw

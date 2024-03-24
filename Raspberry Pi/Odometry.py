@@ -23,29 +23,12 @@ class Mecanum_Drive():
         x = format(x,".2f")
         #self.x_dist = x
         return float(x)
+    
     def getyDist(self): 
         y = (1/4.0)*(self.Enc1.getDist()+self.Enc2.getDist()+self.Enc3.getDist()+self.Enc4.getDist())
         y = format(y,".2f")
         #self.y_Dist = y
         return float(y)
-    def getzDist(self, E1,E2,E3,E4,cur_w): # not in use
-        # theta = (1/51.6)*(self.Enc1.getDist()-self.Enc2.getDist()+self.Enc3.getDist()-self.Enc4.getDist())
-        delta_FL = self.Enc1.getDist() 
-        delta_RL = self.Enc3.getDist()
-        delta_FR = self.Enc2.getDist()
-        delta_RR = self.Enc4.getDist()
-
-        delta_theta = (-(delta_FR + delta_RR)+(delta_FL + delta_RL)) / 4.0
-        theta = delta_theta
-        if theta >= 3.141:
-            theta = theta - 3.141*2
-        elif theta <= -3.141:
-            theta = theta + 3.141*2
-        else:
-            theta = theta + 0
-            
-        theta = format(theta,".2f")
-        return float(theta)
     
     def CalculateOdometry(self,current_time): # not in use
         radius = 0.03

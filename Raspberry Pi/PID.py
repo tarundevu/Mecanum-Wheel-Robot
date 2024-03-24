@@ -16,13 +16,13 @@ class PID():
         self.integral = 0
         
 
-    def Calculate(self,val,sensor_val,end_con = 0.5,end_limit = 0.5):
-        
+    def Calculate(self,val,sensor_val,end_con = 0.5,end_limit = 0.5,debug=False):
+        start_time = time.time()
         self.setpoint = val
-        measured_speed = sensor_val
+        measured_val = sensor_val
         end_flag = False
         # calculates error
-        error = float(self.setpoint - measured_speed)
+        error = float(self.setpoint - measured_val)
 
         # Proportional
         proportional = self.Kp * error
@@ -44,12 +44,17 @@ class PID():
         self.prev_error = error
 
         # end condition if error is low, stop PID
-        if error<=end_con and error>=-end_con:
-            if (error - self.prev_error) > -end_con or (error - self.prev_error) < end_con:
-                end_flag = True
+        if error<=0.02 and error>=-0.02:
+            error = 0
+            end_flag = True
         else:
             end_flag = False
-            
+        
+        end_time = time.time()
+        # print(start_time-end_time)
+        if debug:
+            print(f"{proportional} {self.integral} {derivative} Status:{end_flag}")
+        
         return float(new_value), float(self.integral), bool(end_flag)
     
     def Reset(self):

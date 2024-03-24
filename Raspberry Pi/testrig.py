@@ -5,7 +5,11 @@ import math
 import tkinter as tk
 import Astar
 import IMU
-
+import numpy as np
+# import plot
+import matplotlib
+import matplotlib.pyplot as plt
+matplotlib.use('TkAgg')
 # Map
 StartPos = (16,16)
 # Variables & Objects
@@ -44,16 +48,21 @@ newvalx = 0.0
 newvaly = 0.0
 newvalw = 0.0
 # GUI
+g_x,g_y = np.array([StartPos[0]]),np.array([StartPos[1]])
 # Functions
 
 def updateOdometry():
     # global cur_x, cur_y, cur_w, theta, E1, E2, E3, E4,V1,V2,V3,V4, IMU_Val, init_yaw, timeint, Robot_x,Robot_y
-    global cur_w, Robot_x,Robot_y
+    global cur_w, Robot_x,Robot_y,g_x,g_y
     while True:
         cur_w,th = Robot_IMU.getOdometry([0,0,theta])
         Robot_x, Robot_y = UpdatePosition(cur_x,cur_y,th)
-        
-        print(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {th}")
+        g_x = np.append(g_x,Robot_x)
+        g_y = np.append(g_y,Robot_y)
+        # print(g_x)
+        # subprocess.run(["python", "C:\github\Mecanum-Wheel-Robot\Raspberry Pi\plot.py"])
+        # plot.main()
+        # print(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {th}")
         
         time.sleep(0.05)
 def GUI_start():
@@ -98,8 +107,8 @@ def GUI_start():
     window = tk.Tk()
     window.title('ROBOT DROID TEST CONSOLE')
     bg = tk.Canvas(window, width=400,height=330 )
-    icon_small = tk.PhotoImage(file='C:/github/Mecanum-Wheel-Robot/Raspberry Pi/rover.png')
-    icon_large = tk.PhotoImage(file='C:/github/Mecanum-Wheel-Robot/Raspberry Pi/rover_large.png')
+    icon_small = tk.PhotoImage(file='C:/github/Mecanum-Wheel-Robot/Raspberry Pi/HUD_16x16.png')
+    icon_large = tk.PhotoImage(file='C:/github/Mecanum-Wheel-Robot/Raspberry Pi/HUD_1_32x32.png')
     window.iconphoto(False,icon_large,icon_small)
     window.resizable(False,False)
     curYbutton_up = tk.Button(window,bg="light grey",fg="black",text='\u2303',height=1,width=1,command=addCury)
@@ -166,6 +175,7 @@ def GUI_start():
     bg.pack()
     window.mainloop()
     
+    
 
 def UpdatePosition(x,y,theta):
     rad = math.radians
@@ -177,6 +187,11 @@ def UpdatePosition(x,y,theta):
     
     return round(r_x,2),round(r_y,2)
 
+def plot_map():
+    return (Robot_x,Robot_y)
+        
+        
+    
 def map_values(num, inMin, inMax, outMin, outMax)->float:
     return (num - inMin) * (outMax - outMin) / (inMax - inMin) + outMin
 
@@ -189,9 +204,9 @@ def PID_Controller(x,y,w):
     end_Flag = False
     init_x,init_y,init_w = x-cur_x,y-cur_y,w-cur_w
     while not end_Flag:
-        x_val,i1,endx = pidx.Calculate(x,cur_x,(x+4)*0.75)
-        y_val,i2,endy= pidy.Calculate(y,cur_y,(y+4)*0.75)
-        w_val,i3,endw = pidw.Calculate(w,cur_w,math.pi/4,0.02,0.02)
+        x_val,i1,endx = pidx.Calculate(x,cur_x)
+        y_val,i2,endy= pidy.Calculate(y,cur_y)
+        w_val,i3,endw = pidw.Calculate(w,cur_w,0.02,0.02)
         int1,int2,int3 = i1,i2,i3
         newvalx,newvaly,newvalw = x_val,y_val,w_val
         x_limit,y_limit,w_limit = abs(init_x+0.001)*20, abs(init_y+0.001)*20, abs(w_val)*10
@@ -271,29 +286,38 @@ def Move_Astar(target_x,target_y):
             print(x,y)
             # path.remove((x,y))
         
-        if path==None:
-            print("xxxxxxxxxxxxxxxxxxxxxxxxxx_Astar Seq Complete_xxxxxxxxxxxxxxxxxxxxxxxxx")
-            break
+        break
 
 if __name__ == '__main__':
     update_odometry_thread = threading.Thread(target=updateOdometry)
     GUI_thread = threading.Thread(target=GUI_start)
+    # plot_thread = threading.Thread(target=plot_ma/p)
     update_odometry_thread.daemon = True
     GUI_thread.daemon = True
+    # plot_thread.daemon = True
     update_odometry_thread.start()
     GUI_thread.start()
-    #initialize yaw
-        # cur_w = 
+    # plot_thread.start()
+    
     
     time.sleep(3)
     try:
         
         while not end_flag:
-            # 
-            Move_Astar(160,90)
+            
+            
+            
+            
+        # plt.draw()
+            # plt.pause(0.5)
+            # plt.close()
+            Move_Astar(30,30)
             end_flag=True
             
             time.sleep(0.5)
+        # plt.axis((0, 180, 0, 120))
+        # plt.plot(g_x, g_y, 'bo')
+        # plt.show()
     except KeyboardInterrupt:
         print("Exiting...")
       
