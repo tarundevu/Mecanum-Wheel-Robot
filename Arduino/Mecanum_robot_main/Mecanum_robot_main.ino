@@ -1,4 +1,3 @@
-
 #include "I2Cdev.h"
 #include <SparkFun_TB6612.h>
 #include "MPU6050_6Axis_MotionApps20.h"
@@ -63,7 +62,9 @@ Motor motor3 = Motor(d2AIN1, d2AIN2, d2PWMA, offsetA, STBY);
 Motor motor4 = Motor(d2BIN1, d2BIN2, d2PWMB, offsetB, STBY); 
 
 float Vx = 0, Vy = 0, Wz = 0;
+float W1 = 0, W2 = 0, W3 = 0, W4 = 0;
 long inittime = millis();
+
 void setup() {
   
   // put your setup code here, to run once:
@@ -75,6 +76,7 @@ void setup() {
     #endif
 
   Serial.begin(115200);
+  Serial.flush();
   while (!Serial);
   
   mpu.initialize();
@@ -107,29 +109,34 @@ void loop() {
   unsigned long delta;
   String data;
   int loopCount = 1;
-
-  // Reciever
-  if (Serial.available() >= 12) {
-
-    Serial.readBytes((char *)&Vx, 4);
-    Serial.readBytes((char *)&Vy, 4);
-    Serial.readBytes((char *)&Wz, 4);
-
-  }
+  // MPU 6050 //
   if (!dmpReady) return;
-//   read a packet from FIFO
-  
-  
     if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { // Get the Latest packet 
       
       #ifdef OUTPUT_READABLE_YAWPITCHROLL
-          // display Euler angles in degrees
+          // display Euler angles in degree6
           mpu.dmpGetQuaternion(&q, fifoBuffer);
           mpu.dmpGetGravity(&gravity, &q);
           mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
           
       #endif
   }
+  // Reciever
+  if (Serial.available() >= 16) {
+
+    Serial.readBytes((char *)&W1, 4);
+    Serial.readBytes((char *)&W2, 4);
+    Serial.readBytes((char *)&W3, 4);
+    Serial.readBytes((char *)&W4, 4);
+
+  }
+  else{
+    W1 = 0;
+    W3 = 0;
+    W3 = 0;
+    W4 = 0;
+  }
+  
   // Transmitter- send IMU data every 100ms
   if ((now - inittime)>=100){
     inittime = now;
@@ -137,19 +144,12 @@ void loop() {
     float pitch = ypr[1] * 180/M_PI;
     float yaw = ypr[0] * 180/M_PI;
     
-    // Serial.write((byte*)&roll,sizeof(roll));
-    // Serial.write((byte*)&pitch,sizeof(pitch));
     Serial.write((byte*)&yaw,sizeof(yaw));
-
+  //Serial.println(yaw);
   }
-  MoveRobot(Vx,Vy,Wz);
   
-//  motor2.drive(speedToPWM(Vy)); 
-//  motor2.drive(speedToPWM(Vy)); 
-//  motor3.drive(speedToPWM(Vy)); 
-//  motor4.drive(speedToPWM(Vy)); 
-//  Serial.println(speedToPWM(Vx));
-   
+  MoveRobotPWM(W1,W2,W3,W4);
+
 }
 /*
  * Converts velocity to PWM value
@@ -194,7 +194,6 @@ void MoveRobot(float vx, float vy, float wz){
     pwm1 = pwm1 + 5*m1;
   if (pwm2 != 0)
     pwm2 = pwm2 + 5*m2;
-  if (pwm3 != 0)
     pwm3 = pwm3 + 1*m3;
   if (pwm4 != 0)
     pwm4 = pwm4;
@@ -202,15 +201,28 @@ void MoveRobot(float vx, float vy, float wz){
   motor1.drive(pwm1); 
   motor2.drive(pwm2); 
   motor3.drive(pwm3); 
-  motor4.drive(pwm4); 
+  motor4.drive(pwm4);
+}
+/**
+* @param w1 in pwm
+* @param w2 in pwm
+* @param w3 in pwm
+* @param w4 in pwm
+*/
+void MoveRobotPWM(float w1,float w2,float w3,float w4){
+  motor1.drive(w1); 
+  motor2.drive(w2); 
+  motor3.drive(w3); 
+  motor4.drive(w4); 
+}
+  
   // Print for checking // 
 //  Serial.print(pwm1);
 //  Serial.print(" ");
 //  Serial.print(pwm2);
-//  Serial.print(" ");
+//  Seial.print(" ");
 //  Serial.print(pwm3);
 //  Serial.print(" ");
 //  Serial.print(pwm4);
 //  Serial.println("");
 //  delay(200);
-}

@@ -1,17 +1,17 @@
 import time
 import math
-import RPi.GPIO as GPIO
-#/*
-# This class is used to calculate the no. of rotations from the Outputs of photo interruptor modules
-# 
-# */
+import RPi.GPIO as GPIO # type: ignore
+'''
+ This class is used to calculate the no. of rotations from the Outputs of encoders
+'''
 class Encoder():
-    def __init__(self, pin_a, pin_b, pulses_per_revolution):
+    def __init__(self, pin_a: int, pin_b: int, pulses_per_revolution: int):
         self.pin_a = pin_a
         self.pin_b = pin_b
         self.count = 0
         self.pulses_per_revolution = pulses_per_revolution
         self.prev_count = 0
+        self.prev_time = 0
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.pin_a, GPIO.IN)
         GPIO.setup(self.pin_b, GPIO.IN)
@@ -34,12 +34,16 @@ class Encoder():
         dist = self.getDistancePerPulse * self.getCount
         return dist
     
-    def getVel(self):
+    def getVel(self,cur_time):
         encoder_count = self.getCount() - self.prev_count # gets the encoder count per sec
-        rpm  = (encoder_count*60.0)/self.pulses_per_revolution # finds the rpm
-        angular_vel = rpm * 0.10472 # finds angular velocity
-        # linear_vel = angular_vel * 0.03 # finds the linear velocity
-        angular_vel = format(angular_vel,".2f")
+        dT = cur_time - self.prev_time
+        linear_vel = (encoder_count * self.getDistancePerPulse()/100)/dT
+        angular_vel = linear_vel * 0.03
+        # rpm  = (encoder_count*60.0)/self.pulses_per_revolution # finds the rpm
+        # angular_vel = rpm * 0.10472 # finds angular velocity
+        # # linear_vel = angular_vel * 0.03 # finds the linear velocity
+        # angular_vel = format(angular_vel,".2f")
         self.prev_count = self.getCount()
+        self.prev_time = cur_time
         return float(angular_vel)
         

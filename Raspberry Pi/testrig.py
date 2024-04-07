@@ -1,7 +1,11 @@
+'''
+
+'''
 import threading
 import time
 import PID
 import math
+import matplotlib.pyplot as plt
 import tkinter as tk
 import Astar
 import IMU
@@ -49,12 +53,18 @@ newvaly = 0.0
 newvalw = 0.0
 # GUI
 g_x,g_y = np.array([StartPos[0]]),np.array([StartPos[1]])
+# DataLogging
+CoordData = []
+timelog = []
 # Functions
 
 def updateOdometry():
     # global cur_x, cur_y, cur_w, theta, E1, E2, E3, E4,V1,V2,V3,V4, IMU_Val, init_yaw, timeint, Robot_x,Robot_y
     global cur_w, Robot_x,Robot_y,g_x,g_y
+    prev_time = time.time()
+    elapsed = 0.0
     while True:
+        cur_time = time.time()
         cur_w,th = Robot_IMU.getOdometry([0,0,theta])
         Robot_x, Robot_y = UpdatePosition(cur_x,cur_y,th)
         g_x = np.append(g_x,Robot_x)
@@ -63,8 +73,17 @@ def updateOdometry():
         # subprocess.run(["python", "C:\github\Mecanum-Wheel-Robot\Raspberry Pi\plot.py"])
         # plot.main()
         # print(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {th}")
-        
+         # Debugging
+        if (cur_time - prev_time > 2):
+            elapsed += (cur_time - prev_time)
+            CollectData((cur_x,cur_y),elapsed)
+            prev_time = cur_time
         time.sleep(0.05)
+
+def CollectData(data,time):
+    CoordData.append(data)
+    timelog.append(time)
+
 def GUI_start():
     
     def addCury():
@@ -226,7 +245,7 @@ def PID_Controller(x,y,w):
 #     print("{}".format(endx))
     # print("working")
         
-        # print("{} {} {}".format(y,y_val,w_val))
+    # print("{} {} {}".format(y,y_val,w_val))
     # print("{} {} {}".format(x_limit,y_limit,w_limit))
     # print("{} {} {}".format(Vx,Vy,Wz))
     
@@ -278,7 +297,8 @@ def MoveToCoord(target_x, target_y):
     pidw.Reset()
 
 def Move_Astar(target_x,target_y):
-    path = Astar.main(StartPos,(target_x,target_y))
+    global data, path
+    path, data = Astar.main(StartPos,(target_x,target_y))
     
     while not end_flag:
         for x,y in path:
@@ -304,20 +324,31 @@ if __name__ == '__main__':
     try:
         
         while not end_flag:
-            
-            
-            
-            
-        # plt.draw()
-            # plt.pause(0.5)
-            # plt.close()
-            Move_Astar(30,30)
-            end_flag=True
+       
+            Move_Astar(25,80)
+            # MoveRobot(0,30)
+
+            rr = input("e")
+            if rr == 'e':
+                end_flag=True
             
             time.sleep(0.5)
-        # plt.axis((0, 180, 0, 120))
-        # plt.plot(g_x, g_y, 'bo')
-        # plt.show()
+            
+        # PID plot
+        # plt.plot(timelog,CoordData)
+        # plt.axis((0, 60, -60, 100))
+        
+        # Robot path plot
+        plt.plot(data[0][0],data[0][1])
+        plt.plot(16,16,'bo')
+        plt.plot(path[len(path)-1][0],path[len(path)-1][1],'go')
+        plt.plot(data[1][0],data[1][1],'ks')
+        plt.plot(data[2][0],data[2][1],'rx')
+        plt.plot(CoordData[0],CoordData[1],'y')
+        plt.axis((0, 180, 0, 120))
+
+
+        plt.show()
     except KeyboardInterrupt:
         print("Exiting...")
       

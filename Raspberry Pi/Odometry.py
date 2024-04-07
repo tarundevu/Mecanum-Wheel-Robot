@@ -5,7 +5,7 @@ import Encoder
 import RPi.GPIO as GPIO
 #
 class Mecanum_Drive():
-    def __init__(self,E1,E2,E3,E4):
+    def __init__(self,E1: object,E2: object,E3: object,E4: object):
         self.prev_time = 0
         self.x_dist = 0
         self.y_dist = 0

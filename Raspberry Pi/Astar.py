@@ -3,6 +3,7 @@ import numpy as np
 from numpy import size
 import time
 import tkinter as tk
+import matplotlib.pyplot as plt
 
 class Node():
     def __init__(self, parent=None,coord=None, obstacle=False):
@@ -79,34 +80,68 @@ class Map:
     def grid_to_realworld(self,coord):
         return coord[0]*self.node_dist_cm, coord[1] * self.node_dist_cm
 class AStarGridMapGUI:
-    def __init__(self, root, map, path):
-        self.root = root
+    def __init__(self, map, path):
         self.map = map
         self.path = path
-        self.canvas = tk.Canvas(root, width=900, height=900, bg='white')
-        self.canvas.pack()
+      
 
     def draw_grid_map(self):
         num_rows, num_cols = self.map.grid.shape
         grid = self.map.grid
         exp = self.map.expanded
-        create = self.canvas.create_rectangle
-        cell_width = 600 // num_cols+1
-        cell_height = 600 // num_rows+1
+        obs = self.map.obstacles
+        path = self.path
+        convert_coord = self.map.grid_to_realworld
+        obs = list(map(convert_coord,obs))
+        exp = list(map(convert_coord,exp))
+        x_val = []
+        y_val = []
+        obs_coordx = []
+        obs_coordy = []
+        exp_coordx = []
+        exp_coordy = []
+        for x,y in path:
+            x_val.append(x)
+            y_val.append(y)
+        for x,y in obs:
+            obs_coordx.append(x)
+            obs_coordy.append(y)
+        for x,y in exp:
+            exp_coordx.append(x)
+            exp_coordy.append(y)
+
+        plt.plot(x_val,y_val)
+        plt.plot(16,16,'bo')
+        plt.plot(path[len(path)-1][0],path[len(path)-1][1],'go')
+        plt.plot(obs_coordx,obs_coordy,'ks')
+        plt.plot(exp_coordx,exp_coordy,'rx')
+        plt.axis((0, int(self.map.height_cm), 0, int(self.map.width_cm)))
+        plt.show()
         
-        for i in range(num_rows):
-            for j in range(num_cols):
-                x0, y0 = j * cell_width, i * cell_height
-                x1, y1 = x0 + cell_width, y0 + cell_height
-                if (i, j) in self.path:
-                    create(x0, y0, x1, y1, fill='green', outline='green')
-                elif grid[i][j] == 1:
-                    if (i,j) in exp:
-                        create(x0, y0, x1, y1, fill='red', outline='red')
-                    else:
-                        create(x0, y0, x1, y1, fill='black', outline='black')
-                else:
-                    create(x0, y0, x1, y1, fill='white', outline='black')
+    def SendMapData(self):
+        exp = self.map.expanded
+        obs = self.map.obstacles
+        path = self.path
+        convert_coord = self.map.grid_to_realworld
+        obs = list(map(convert_coord,obs))
+        exp = list(map(convert_coord,exp))
+        x_val = []
+        y_val = []
+        obs_coordx = []
+        obs_coordy = []
+        exp_coordx = []
+        exp_coordy = []
+        for x,y in path:
+            x_val.append(x)
+            y_val.append(y)
+        for x,y in obs:
+            obs_coordx.append(x)
+            obs_coordy.append(y)
+        for x,y in exp:
+            exp_coordx.append(x)
+            exp_coordy.append(y)
+
+        return ((x_val,y_val),(obs_coordx,obs_coordy),(exp_coordx,exp_coordy))
         
 
 def getHeuristic(node, goal, node_dist_cm):
@@ -203,24 +238,23 @@ def print_path(_map, path):
     exp = _map.expanded
     convert_coord = _map.grid_to_realworld
     if path:
-#         for row in range(size(grid,0)):
-#             for col in range(size(grid,1)):
-#                 if (row, col) in path:
-#                     print("* ", end="")
-#                 elif grid[row,col] == 1:
-#                     if (row,col) in exp:
-#                         print("| ", end="")
-#                     else:
-#                         print("X ", end="")
-#                 else:
-#                     print(". ", end="")
-#             print()
-#         print("")
-#         true_path = [convert_coord(coord) for coord in path]
+        # for row in range(size(grid,0)):
+        #     for col in range(size(grid,1)):
+        #         if (row, col) in path:
+        #             print("* ", end="")
+        #         elif grid[row,col] == 1:
+        #             if (row,col) in exp:
+        #                 print("| ", end="")
+        #             else:
+        #                 print("X ", end="")
+        #         else:
+        #             print(". ", end="")
+        #     print()
+        # print("")
         print("path found")
         true_path = list(map(convert_coord,path))
         true_path = simplify_path(true_path)
-#         print(true_path)
+        
         return true_path
     else:
         print("no path found")
@@ -232,15 +266,15 @@ def main(start_pos=(16,16),end_pos=(140,60)):
     st = time.time()
     map = Map(180,120,2)
     Grid = map.grid
-#     root = tk.Tk()
-#     root.title("A* Grid Map")
+    
     #add boundaries
-    map.createObsRect(0,0,3,map.width_cm) #top
-    map.createObsRect(0,0,map.height_cm,3) #left
-    map.createObsRect(0,map.width_cm-3,map.height_cm,map.width_cm) #right
-    map.createObsRect(map.height_cm-3,0,map.height_cm,map.width_cm) #bottom
+    map.createObsRect(0,0,2,map.width_cm) #top
+    map.createObsRect(0,0,map.height_cm,2) #left
+    map.createObsRect(0,map.width_cm-2,map.height_cm,map.width_cm) #right
+    map.createObsRect(map.height_cm-2,0,map.height_cm,map.width_cm) #bottom
     map.createObs(75,60,30,30)
     map.createObs(135,90,15,15)
+    map.createObs(75,20,5,5)
     map.expandObs(15)
     map.addObstacles()
 
@@ -248,14 +282,17 @@ def main(start_pos=(16,16),end_pos=(140,60)):
     end = (end_pos[0]//map.node_dist_cm,end_pos[1]//map.node_dist_cm)
 
     path = astar(Grid, start, end)
-#     gui = AStarGridMapGUI(root, map, path)
-#     gui.draw_grid_map()
-#     root.mainloop()
+
     p = print_path(map,path)
+
+    gui = AStarGridMapGUI(map,p)
+    # gui.draw_grid_map()
+    
     end = time.time()
 #     print("The time of execution of above program is :",(end-st) * 10**3, "ms")
 #     print(p)
-    return p
+    return p , gui.SendMapData()
+    
     
     
    # print(map.grid)
