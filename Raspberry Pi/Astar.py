@@ -86,8 +86,6 @@ class AStarGridMapGUI:
       
 
     def draw_grid_map(self):
-        num_rows, num_cols = self.map.grid.shape
-        grid = self.map.grid
         exp = self.map.expanded
         obs = self.map.obstacles
         path = self.path
@@ -262,7 +260,7 @@ def print_path(_map, path):
     print("")
     
     
-def main(start_pos=(16,16),end_pos=(140,60)):
+def main(start_pos=(16,16),end_pos=(140,60)): # default start and end pts for testing purposes
     st = time.time()
     map = Map(180,120,2)
     Grid = map.grid
@@ -286,7 +284,7 @@ def main(start_pos=(16,16),end_pos=(140,60)):
     p = print_path(map,path)
 
     gui = AStarGridMapGUI(map,p)
-    # gui.draw_grid_map()
+    # gui.draw_grid_map() # uncomment to display map
     
     end = time.time()
 #     print("The time of execution of above program is :",(end-st) * 10**3, "ms")

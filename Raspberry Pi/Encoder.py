@@ -1,10 +1,11 @@
 import time
 import math
-import RPi.GPIO as GPIO # type: ignore
-'''
- This class is used to calculate the no. of rotations from the Outputs of encoders
-'''
+import RPi.GPIO as GPIO
+
 class Encoder():
+    '''
+        This class is used to calculate the no. of rotations from the encoders
+    '''
     def __init__(self, pin_a: int, pin_b: int, pulses_per_revolution: int):
         self.pin_a = pin_a
         self.pin_b = pin_b
@@ -39,10 +40,6 @@ class Encoder():
         dT = cur_time - self.prev_time
         linear_vel = (encoder_count * self.getDistancePerPulse()/100)/dT
         angular_vel = linear_vel * 0.03
-        # rpm  = (encoder_count*60.0)/self.pulses_per_revolution # finds the rpm
-        # angular_vel = rpm * 0.10472 # finds angular velocity
-        # # linear_vel = angular_vel * 0.03 # finds the linear velocity
-        # angular_vel = format(angular_vel,".2f")
         self.prev_count = self.getCount()
         self.prev_time = cur_time
         return float(angular_vel)

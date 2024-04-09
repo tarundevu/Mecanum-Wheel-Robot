@@ -1,19 +1,23 @@
 '''
 
+  _______________________
+ /_  __/ ____/ ___/_  __/
+  / / / __/  \__ \ / /   
+ / / / /___ ___/ // /    
+/_/ /_____//____//_/     
+                         
+
 '''
 import threading
 import time
 import PID
 import math
-import matplotlib.pyplot as plt
 import tkinter as tk
 import Astar
 import IMU
 import numpy as np
-# import plot
 import matplotlib
 import matplotlib.pyplot as plt
-matplotlib.use('TkAgg')
 # Map
 StartPos = (16,16)
 # Variables & Objects
@@ -59,7 +63,6 @@ timelog = []
 # Functions
 
 def updateOdometry():
-    # global cur_x, cur_y, cur_w, theta, E1, E2, E3, E4,V1,V2,V3,V4, IMU_Val, init_yaw, timeint, Robot_x,Robot_y
     global cur_w, Robot_x,Robot_y,g_x,g_y
     prev_time = time.time()
     elapsed = 0.0
@@ -69,11 +72,10 @@ def updateOdometry():
         Robot_x, Robot_y = UpdatePosition(cur_x,cur_y,th)
         g_x = np.append(g_x,Robot_x)
         g_y = np.append(g_y,Robot_y)
-        # print(g_x)
-        # subprocess.run(["python", "C:\github\Mecanum-Wheel-Robot\Raspberry Pi\plot.py"])
-        # plot.main()
+
         # print(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {th}")
-         # Debugging
+
+        # Debugging
         if (cur_time - prev_time > 2):
             elapsed += (cur_time - prev_time)
             CollectData((cur_x,cur_y),elapsed)
@@ -282,7 +284,6 @@ def MoveRobot(type, dist):
     pidw.Reset()
 
 def MoveToCoord(target_x, target_y):
-#     global theta, end_flag
     angle = math.radians(theta)
     x = 0
     y = 0
@@ -296,7 +297,7 @@ def MoveToCoord(target_x, target_y):
     pidy.Reset()
     pidw.Reset()
 
-def Move_Astar(target_x,target_y):
+def Move_Astar(target_x,target_y): # add total path
     global data, path
     path, data = Astar.main(StartPos,(target_x,target_y))
     
@@ -304,33 +305,27 @@ def Move_Astar(target_x,target_y):
         for x,y in path:
             MoveToCoord(x,y)
             print(x,y)
-            # path.remove((x,y))
         
         break
 
 if __name__ == '__main__':
     update_odometry_thread = threading.Thread(target=updateOdometry)
     GUI_thread = threading.Thread(target=GUI_start)
-    # plot_thread = threading.Thread(target=plot_ma/p)
     update_odometry_thread.daemon = True
     GUI_thread.daemon = True
-    # plot_thread.daemon = True
     update_odometry_thread.start()
     GUI_thread.start()
-    # plot_thread.start()
-    
-    
     time.sleep(3)
     try:
         
         while not end_flag:
        
-            Move_Astar(25,80)
+            Move_Astar(25,40)
             # MoveRobot(0,30)
 
-            rr = input("e")
-            if rr == 'e':
-                end_flag=True
+            # rr = input("e")
+            # if rr == 'e':
+            end_flag=True
             
             time.sleep(0.5)
             
@@ -344,9 +339,16 @@ if __name__ == '__main__':
         plt.plot(path[len(path)-1][0],path[len(path)-1][1],'go')
         plt.plot(data[1][0],data[1][1],'ks')
         plt.plot(data[2][0],data[2][1],'rx')
-        plt.plot(CoordData[0],CoordData[1],'y')
-        plt.axis((0, 180, 0, 120))
+        RobotPathX = []
+        RobotPathY = []
 
+        for x,y in CoordData:
+            RobotPathX.append(x)
+            RobotPathY.append(y)
+        
+        plt.plot(RobotPathX,RobotPathY,'y--')
+        plt.axis((0, 180, 0, 120))
+ 
 
         plt.show()
     except KeyboardInterrupt:
