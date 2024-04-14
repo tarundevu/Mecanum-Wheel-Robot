@@ -24,10 +24,11 @@ class Encoder():
         else:
             self.count -= 1
             
-    def getCount(self):
+    def getCount(self)->int:
         return self.count
     
-    def getDistancePerPulse(self):
+    def getDistancePerPulse(self)->float:
+        '''Returns distance per pulse in centimetres '''
         distance_per_pulse = math.pi*6/self.pulses_per_revolution
         return distance_per_pulse
     
@@ -35,12 +36,16 @@ class Encoder():
         dist = self.getDistancePerPulse * self.getCount
         return dist
     
-    def getVel(self,cur_time):
+    def getVel(self,cur_time)->float:
+        ''' V = (Encoder count*Distance per pulse(in m))/time elapsed ,
+            ω = V*wheel_radius(in m)
+        '''
         encoder_count = self.getCount() - self.prev_count # gets the encoder count per sec
         dT = cur_time - self.prev_time
         linear_vel = (encoder_count * self.getDistancePerPulse()/100)/dT
         angular_vel = linear_vel * 0.03
         self.prev_count = self.getCount()
         self.prev_time = cur_time
+        
         return float(angular_vel)
         

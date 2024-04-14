@@ -24,7 +24,7 @@ class Mecanum_Drive():
         '''
         x = (1/4.0)*(self.Enc1.getDist()-self.Enc2.getDist()-self.Enc3.getDist()+self.Enc4.getDist())
         x = format(x,".2f")
-        #self.x_dist = x
+
         return float(x)
     
     def getyDist(self): 
@@ -33,7 +33,7 @@ class Mecanum_Drive():
         '''
         y = (1/4.0)*(self.Enc1.getDist()+self.Enc2.getDist()+self.Enc3.getDist()+self.Enc4.getDist())
         y = format(y,".2f")
-        #self.y_Dist = y
+
         return float(y)
     
     def CalculateOdometry(self,current_time): # not in use

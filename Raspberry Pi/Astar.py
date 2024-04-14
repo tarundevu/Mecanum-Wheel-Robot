@@ -1,4 +1,5 @@
 import math
+from runpy import run_path
 import numpy as np
 from numpy import size
 import time
@@ -30,22 +31,23 @@ class Map:
         # Create an empty grid
         self.grid = np.zeros((self.tile_height, self.tile_width))
         self.obstacles = set()  # Set of obstacle nodes
-        self.expanded = set()
+        self.expanded = set()  # Set of expanded nodes
     def getGrid(self):
         return self.grid
     
     def addObstacles(self):
+        ''' Adds obstacles to map '''
         grid = self.grid
         for x, y in self.obstacles.union(self.expanded):
             grid[x, y] = 1
         
-        
     def createObs(self, x, y, w, h):
-        x,y = x//self.node_dist_cm,y//self.node_dist_cm
-        w, h = w//self.node_dist_cm,h//self.node_dist_cm
+        ''' Creates an obstacle given its coordinates and dimensions '''
+        # convert the dimensions to nodes
+        x, y = x//self.node_dist_cm, y//self.node_dist_cm
+        w, h = w//self.node_dist_cm, h//self.node_dist_cm
         obs = self.obstacles
         grid = self.grid
-        # newx,newy = int(x-math.ceil(h*0.5)), int(y-math.ceil(w*0.5))
         
         for i in range(-round(h/2), round(h/2)):
             for j in range(-round(w/2), round(w/2)):
@@ -57,6 +59,7 @@ class Map:
                     print("Coordinates out of bounds")
 
     def createObsRect(self, x1, y1, x2, y2):
+        ''' Creates an obstacle given 2 points '''
         x1, x2, y1, y2 = x1//self.node_dist_cm, x2 //self.node_dist_cm, y1 // self.node_dist_cm, y2 // self.node_dist_cm
         min_x, max_x, min_y, max_y = min(x1, x2), max(x1, x2), min(y1, y2), max(y1, y2)
          
@@ -65,6 +68,7 @@ class Map:
                 self.obstacles.add((x, y))
 
     def expandObs(self,dist):
+        ''' Expands the nodes to create a buffer zone for the robot'''
         newobs = set()
         dist = dist // self.node_dist_cm
         for x, y in self.obstacles:
@@ -75,16 +79,14 @@ class Map:
                         newobs.add((newx, newy))
         self.expanded.update(newobs)
         
-        
-                    
-    def grid_to_realworld(self,coord):
+    def grid_to_realworld(self,coord): # Convert nodes to real world values
+        ''' Converts nodes back to real world values '''
         return coord[0]*self.node_dist_cm, coord[1] * self.node_dist_cm
 class AStarGridMapGUI:
     def __init__(self, map, path):
         self.map = map
         self.path = path
       
-
     def draw_grid_map(self):
         exp = self.map.expanded
         obs = self.map.obstacles
@@ -163,6 +165,7 @@ def getNeighbors(grid, node, grid_size):
     return neighbors
 
 def astar(grid, start, end):
+    ''' Calculates the path'''
     grid_size = grid.shape
     # initialize nodes
     start_node = Node(None,start)
@@ -216,9 +219,11 @@ def astar(grid, start, end):
                 open_list.append(neighbor)
     
 def collinear(p1,p2,p3):
+    ''' Finds collinear points on the map '''
     return (p2[1]-p1[1])*(p3[0]-p2[0]) == (p3[1]-p2[1])*(p2[0]-p1[0])
 
 def simplify_path(path):
+    ''' Simplifies the path by finding collinear points and combining all straight paths '''
     if len(path)<3:
         return path
     
@@ -231,37 +236,21 @@ def simplify_path(path):
     simplified_path.append(path[-1])
     return simplified_path
 
-def print_path(_map, path):
-    grid = _map.grid
-    exp = _map.expanded
+def getPath(_map, path):
     convert_coord = _map.grid_to_realworld
     if path:
-        # for row in range(size(grid,0)):
-        #     for col in range(size(grid,1)):
-        #         if (row, col) in path:
-        #             print("* ", end="")
-        #         elif grid[row,col] == 1:
-        #             if (row,col) in exp:
-        #                 print("| ", end="")
-        #             else:
-        #                 print("X ", end="")
-        #         else:
-        #             print(". ", end="")
-        #     print()
-        # print("")
-        print("path found")
-        true_path = list(map(convert_coord,path))
-        true_path = simplify_path(true_path)
+        print("<=======================path found=========================>")
+        true_path = list(map(convert_coord,path)) # Convert all coordinates to real world
+        true_path = simplify_path(true_path) # Simplifies path
         
         return true_path
     else:
-        print("no path found")
+        print("<=====================no path found======================>")
         
     print("")
     
     
 def main(start_pos=(16,16),end_pos=(140,60)): # default start and end pts for testing purposes
-    st = time.time()
     map = Map(180,120,2)
     Grid = map.grid
     
@@ -279,17 +268,13 @@ def main(start_pos=(16,16),end_pos=(140,60)): # default start and end pts for te
     start = (round(start_pos[0]/map.node_dist_cm),round(start_pos[1]/map.node_dist_cm))
     end = (end_pos[0]//map.node_dist_cm,end_pos[1]//map.node_dist_cm)
 
-    path = astar(Grid, start, end)
+    path = getPath(map,astar(Grid, start, end))
 
-    p = print_path(map,path)
-
-    gui = AStarGridMapGUI(map,p)
+    gui = AStarGridMapGUI(map,path)
     # gui.draw_grid_map() # uncomment to display map
     
     end = time.time()
-#     print("The time of execution of above program is :",(end-st) * 10**3, "ms")
-#     print(p)
-    return p , gui.SendMapData()
+    return path , gui.SendMapData()
     
     
     
