@@ -23,6 +23,7 @@ import threading
 import PID
 import IMU
 import Astar
+import logging
 
 # Map
 StartPos = (16,16)
@@ -72,8 +73,9 @@ timeint = 0
 CoordData = []
 timelog = []
 # Functions
+logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.WARNING)
 def updateOdometry():
-    global cur_x, cur_y, cur_w, theta, E1, E2, E3, E4, V1, V2, V3, V4, IMU_Val, init_yaw, timeint, Robot_x,Robot_y
+    global cur_x, cur_y, cur_w, theta, E1, E2, E3, E4, V1, V2, V3, V4, IMU_Val, init_yaw, timeint, Robot_x, Robot_y
     prev_time = time.time()
     elapsed = 0.0
     while True:
@@ -85,20 +87,18 @@ def updateOdometry():
             IMU_Val = struct.unpack('f',imudata)
    
             if abs(IMU_Val[0]) > 180: # if imu gives gibberish values
-                print("--------------IMU ERROR!------------")
-                print("--------------Please Reset------------")
+                logging.error("IMU error! Restart code")
                 event.set()
                 break
 
-        if timeint>10:
+        if (cur_time - prev_time > 3):
             if IMU_Val[0] == 0: # if imu not transmitting
-                print("---------------MPU 6050 ERROR!--------------")
+                logging.error("Serial connection error! Restart Arduino")
                 event.set()
                 break
             if not init_yaw:
                 Robot_IMU.setInitialYaw(IMU_Val[0]) # calculate imu offset 
-                print("Yaw Calibrated")
-                print(IMU_Val[0])
+                logging.info(f"INITIAL YAW CALIBRATED: {IMU_Val[0]}")
             init_yaw = True
             
         
@@ -132,10 +132,10 @@ def updateOdometry():
             CollectData((cur_y),elapsed)
             prev_time = cur_time
 
-        print(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {theta}")
-        # print("The time of execution of above program is :",(end_time-cur_time) * 10**3, "ms")                                                                       
-        # print("{}:{}:{}::{}".format(E1,E2,E3,E4))
-        # print(f"{V1}:{V2}:{V3}:{V4}")
+        # print(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {theta}")
+        # logging.debug(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {theta}")                                                               
+        # logging.debug(f"ENCODER VALUES-> {E1}:{E2}:{E3}:{E4}")
+        # logging.debug(f"VELOCITY VALUES-> {V1}:{V2}:{V3}:{V4}")
 
         time.sleep(0.05)
 
@@ -159,15 +159,15 @@ def SendData(w1,w2,w3,w4):
         ser.write(data)
         #print(data)
     except serial.SerialException as e:
-        print(f"Error writing data to serial port: {e}")
+        logging.error(f"Error writing data to serial port: {e} |in SendData()|")
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        logging.error(f"An unexpected error occurred: {e} |in SendData()|")
 
 def map_values(num, inMin, inMax, outMin, outMax)->float:
     try:
         val = outMin + (float(num - inMin) / float(inMax - inMin) * float(outMax - outMin))
     except ZeroDivisionError as e:
-        print(f"Error: {e}")
+        logging.error(f"Error: {e} |in map_values()|")
     return val
 
 def PID_Controller(x,y,w):
@@ -203,13 +203,6 @@ def PID_Controller(x,y,w):
             Wz = map_values(w_val,-w_limit,w_limit,-w_speed_lim,w_speed_lim)
             Wz = max(min(Wz, w_speed_lim), -w_speed_lim)
             
-#         print("{} {} {}".format(i1,i2,i3))
-#         print("{} {} {}".format(endx,endy,endw))
-#         print("{} {} {}".format(x,y,w))
-#         print("{} {} {}".format(Vx,Vy,Wz))
-#         print(f"Coord: {cur_x} {cur_y}")
-#         print("limits:{} {} {}".format(round(x_limit,2),round(y_limit,2),round(w_limit,2)))
-#         print("val:{} {} {}".format(round(x_val,2),round(y_val,2),round(w_val,2)))
         
         w1 = 1/wheel_radius * (Vy + Vx +(lx + ly)*Wz)
         w2 = 1/wheel_radius * (Vy - Vx -(lx + ly)*Wz)
@@ -232,18 +225,25 @@ def PID_Controller(x,y,w):
         W4 = max(min(W4, 255), -255)
     
         SendData(W1,W2,W3,W4)
-#         print("{} {} {} {}".format(W1,W2,W3,W4))
-#         print(W1)
+#         logging.debug("{} {} {} {}".format(W1,W2,W3,W4))
+#         logging.debug("{} {} {}".format(i1,i2,i3))
+#         logging.debug("{} {} {}".format(endx,endy,endw))
+#         logging.debug("{} {} {}".format(x,y,w))
+#         logging.debug("{} {} {}".format(Vx,Vy,Wz))
+#         logging.debug(f"Coord: {cur_x} {cur_y}")
+#         logging.debug("limits:{} {} {}".format(round(x_limit,2),round(y_limit,2),round(w_limit,2)))
+#         logging.debug("val:{} {} {}".format(round(x_val,2),round(y_val,2),round(w_val,2)))
+#         
         if endx and endy and endw:
             end_Flag = True
         
 #         time.sleep(0.05)
-    print("*********PID DONE***********")
+    logging.info("========================== PID Completed ==========================")
     return end_Flag
 
         
 def MoveRobot(type, dist):
-    
+    logging.info("========================== MoveRobot() Started ==========================")
     setpoint = dist
     
     x = cur_x
@@ -266,27 +266,30 @@ def MoveRobot(type, dist):
     pidx.Reset()
     pidy.Reset()
     pidw.Reset()
+    logging.info("========================== MoveRobot() Ended ==========================")
        
         
 def MoveToCoord(target_x, target_y,init_w = 0):
-#     global theta, end_flag
+    logging.info("========================== MoveToCoord() Started ==========================")
     angle = math.radians(theta)
     x = 0
     y = 0
-    w = init_w if init_w != 0 else cur_w
+    w = init_w if init_w != 0 else cur_w # when using Astar, to remember the theta value at the start
     x =  math.cos(angle)*target_x - math.sin(angle)*target_y
     y =  math.sin(angle)*target_x + math.cos(angle)*target_y
     
     PID_Controller(x,y,w)
-    print("*********************MoveToCoord Seq complete********************")
     SendData(0,0,0,0)
+    
 #     ser.flush()
     pidx.Reset()
     pidy.Reset()
     pidw.Reset()
+    logging.info("========================== MoveToCoord() Completed ==========================")
 
 def Move_Astar(target_x,target_y):
     global data, path
+    logging.info("========================== Move_Astar() Started ==========================")
     start = (Robot_x,Robot_y)
     path, data = Astar.main(start,(target_x,target_y))
     init_w = copy.copy(cur_w)
@@ -298,8 +301,8 @@ def Move_Astar(target_x,target_y):
             
             break
     except:
-        print("No path found!")
-    print("******************Astar complete*******************")
+        logging.warning("No path found!")
+    logging.info("========================== Move_Astar() Completed ==========================")
         
 if __name__ == '__main__':
     
@@ -313,6 +316,7 @@ if __name__ == '__main__':
     event = threading.Event()
     update_odometry_thread.daemon = True
     update_odometry_thread.start()
+    logging.info("========================== Program Started ==========================")
     time.sleep(3)
     try:
         while True:
@@ -334,7 +338,7 @@ if __name__ == '__main__':
                 Move_Astar(160,90)
 
                 end_flag=True
-
+            logging.info("========================== Task Ended ==========================")
             time.sleep(0.1)
 
             # PID plot
@@ -366,7 +370,7 @@ if __name__ == '__main__':
         plt.axis((0, 60, -60, 100))
         print(timelog)
         print(CoordData)
+        logging.info("========================== Program Ended ==========================")
         
     finally:
         GPIO.cleanup()
-

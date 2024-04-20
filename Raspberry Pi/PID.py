@@ -1,5 +1,6 @@
 import time
 import math
+import logging
 
 
 class PID():
@@ -51,7 +52,7 @@ class PID():
             end_flag = False
         
         if debug:
-            print(f"{proportional} | {self.integral} | {derivative} Status:{end_flag}")
+            logging.debug(f"{proportional} | {self.integral} | {derivative} Status:{end_flag}")
         
         return float(PIDoutput), bool(end_flag)
     
