@@ -13,6 +13,8 @@ class Encoder():
         self.pulses_per_revolution = pulses_per_revolution
         self.prev_count = 0
         self.prev_time = 0
+        self.vel_history = []
+        self.vel_window = 4
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.pin_a, GPIO.IN)
         GPIO.setup(self.pin_b, GPIO.IN)
@@ -44,8 +46,18 @@ class Encoder():
         dT = cur_time - self.prev_time
         linear_vel = (encoder_count * self.getDistancePerPulse()/100)/dT
         angular_vel = linear_vel * 0.03
+        
+
+        # Moving average filter - in order to compensate for low encoder resolution
+        self.vel_history.append(angular_vel)
+        if self.vel_history > self.vel_window:
+            self.vel_history.pop(0) # remove oldest value
+        moving_avg = 0.0
+        if self.vel_history:
+            moving_avg = sum(self.vel_history)/len(self.vel_history) # add the average value
+
         self.prev_count = self.getCount()
         self.prev_time = cur_time
         
-        return float(angular_vel)
+        return float(moving_avg)
         
