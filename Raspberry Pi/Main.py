@@ -37,10 +37,7 @@ Robot_IMU = IMU.Mpu()
 end_flag = False
 init_yaw = False
 # Encoders
-E1 = 0.0
-E2 = 0.0 
-E3 = 0.0
-E4 = 0.0
+E1, E2, E3, E4 = 0.0, 0.0, 0.0, 0.0
 # Velocities
 V1 = 0.0
 V2 = 0.0
@@ -73,7 +70,7 @@ timeint = 0
 CoordData = []
 timelog = []
 # Functions
-logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.WARNING)
+logging.basicConfig(filename="MainLogs.log",format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 def updateOdometry():
     global cur_x, cur_y, cur_w, theta, E1, E2, E3, E4, V1, V2, V3, V4, IMU_Val, init_yaw, timeint, Robot_x, Robot_y
     prev_time = time.time()
@@ -103,11 +100,11 @@ def updateOdometry():
             
         
         # IMU
-        pose, theta = Robot_IMU.getOdometry(IMU_Val)
+        w_total, theta = Robot_IMU.getOdometry(IMU_Val)
         # Odometry
         cur_x = Robot.getxDist() + StartPos[0]
         cur_y = Robot.getyDist() + StartPos[1]
-        cur_w = pose 
+        cur_w = w_total
         # E1 = enc1.getDist()
         # E2 = enc2.getDist()
         # E3 = enc3.getDist()
@@ -191,7 +188,7 @@ def PID_Controller(x,y,w):
         w_limit = abs(w_diff+0.001)*10
         x_speed_lim = 0.1 if abs(x_diff)<30 else 0.3
         y_speed_lim = 0.1 if abs(y_diff)<30 else 0.3 
-        w_speed_lim = 0.5 if abs(w)<=math.pi/2 else 2.5
+        w_speed_lim = 1.5 if abs(w)<=math.pi/2 else 2.5
         
         if x_val != 0:
             Vx = map_values(x_val,-x_limit,x_limit,-x_speed_lim,x_speed_lim)
@@ -238,12 +235,12 @@ def PID_Controller(x,y,w):
             end_Flag = True
         
 #         time.sleep(0.05)
-    logging.info("========================== PID Completed ==========================")
+    logging.info("==========================[ PID Completed ]==========================")
     return end_Flag
 
         
 def MoveRobot(type, dist):
-    logging.info("========================== MoveRobot() Started ==========================")
+    logging.info("==========================[ MoveRobot() Started ]==========================")
     setpoint = dist
     
     x = cur_x
@@ -266,11 +263,11 @@ def MoveRobot(type, dist):
     pidx.Reset()
     pidy.Reset()
     pidw.Reset()
-    logging.info("========================== MoveRobot() Ended ==========================")
+    logging.info("==========================[ MoveRobot() Ended ]==========================")
        
         
 def MoveToCoord(target_x, target_y,init_w = 0):
-    logging.info("========================== MoveToCoord() Started ==========================")
+    logging.info("==========================[ MoveToCoord() Started ]==========================")
     angle = math.radians(theta)
     x = 0
     y = 0
@@ -285,11 +282,11 @@ def MoveToCoord(target_x, target_y,init_w = 0):
     pidx.Reset()
     pidy.Reset()
     pidw.Reset()
-    logging.info("========================== MoveToCoord() Completed ==========================")
+    logging.info("==========================[ MoveToCoord() Completed ]==========================")
 
 def Move_Astar(target_x,target_y):
     global data, path
-    logging.info("========================== Move_Astar() Started ==========================")
+    logging.info("==========================[ Move_Astar() Started ]==========================")
     start = (Robot_x,Robot_y)
     path, data = Astar.main(start,(target_x,target_y))
     init_w = copy.copy(cur_w)
@@ -302,7 +299,7 @@ def Move_Astar(target_x,target_y):
             break
     except:
         logging.warning("No path found!")
-    logging.info("========================== Move_Astar() Completed ==========================")
+    logging.info("==========================[ Move_Astar() Completed ]==========================")
         
 if __name__ == '__main__':
     
@@ -316,29 +313,18 @@ if __name__ == '__main__':
     event = threading.Event()
     update_odometry_thread.daemon = True
     update_odometry_thread.start()
-    logging.info("========================== Program Started ==========================")
+    logging.info("==========================[ Program Started ]==========================")
     time.sleep(3)
     try:
         while True:
             if not end_flag:
-    #               MoveRobot(2,2*math.pi,0.2)
-#                 MoveRobot(1,60)
-#                 time.sleep(3)
-#                 SendData(0,0,0)
-#                 MoveToCoord(60,60)
-#                 MoveToCoord(72,44)
-#                 MoveToCoord(126,44)
-#                 MoveToCoord(140,60)
-#                 SendData(30,0,0)
-#                 time.sleep(4)
-# #             if not end_flag:
-#                 MoveRobot(0,2) 
+
                 Move_Astar(75,100)
                 time.sleep(2)
                 Move_Astar(160,90)
 
                 end_flag=True
-            logging.info("========================== Task Ended ==========================")
+            logging.info("==========================[ Task Ended ]==========================")
             time.sleep(0.1)
 
             # PID plot
@@ -370,7 +356,7 @@ if __name__ == '__main__':
         plt.axis((0, 60, -60, 100))
         print(timelog)
         print(CoordData)
-        logging.info("========================== Program Ended ==========================")
+        logging.info("==========================[ Program Ended ]==========================")
         
     finally:
         GPIO.cleanup()
