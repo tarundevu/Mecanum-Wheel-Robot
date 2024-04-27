@@ -30,7 +30,7 @@ class PID():
         # Integral 
         self.integral = (self.Ki * self.total_error)*dT
         # limit integral to prevent windup
-        self.integral = max(min(self.integral, abs((input+0.1)*20)), -abs((input+0.1)*20))
+        self.integral = max(min(self.integral, abs((input+0.1)*int_limit)), -abs((input+0.1)*int_limit))
         # Integral windup
         if error>=-end_limit and error<=end_limit:
             self.total_error = 0.0
