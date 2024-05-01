@@ -48,9 +48,6 @@ cur_x = 0.0
 cur_y = 0.0
 cur_w = 0.0 # Z distance
 theta = 0.0 # heading
-imu_x = 0.0
-imu_y = 0.0
-imu_w = 0.0
 # Fused Odometry
 # IMU Data
 IMU_Val = [0.0]
@@ -61,10 +58,10 @@ Robot_y = 0.0
 pidx = PID.PID(10,0.1,10)
 pidy = PID.PID(10,0.1,10)
 pidw = PID.PID(2,0.01,0)
-pidw1 = PID.PID(2,0.0001,0)
-pidw2 = PID.PID(2,0.0001,0)
-pidw3 = PID.PID(2,0.0001,0)
-pidw4 = PID.PID(2,0.0001,0)
+pidw1 = PID.PID(0.5,0.0001,0.5)
+pidw2 = PID.PID(0.5,0.0001,0)
+pidw3 = PID.PID(0.5,0.0001,0)
+pidw4 = PID.PID(0.5,0.0001,0)
 timeint = 0
 # DataLogging
 CoordData = []
@@ -178,6 +175,7 @@ def PID_Controller(x,y,w):
     w_diff = w - cur_w
     wheel_radius = 0.03
     lx,ly = 0.068, 0.061
+    rad_s_to_pwm = 255/(0.10472*200)
     while not end_Flag:
         PID_time = time.time()
         x_val,endx = pidx.Calculate(x,cur_x,PID_time,0.2)
@@ -186,6 +184,8 @@ def PID_Controller(x,y,w):
         x_limit = abs(x_diff+0.001)*20
         y_limit = abs(y_diff+0.001)*20
         w_limit = abs(w_diff+0.001)*10
+
+        
         x_speed_lim = 0.1 if abs(x_diff)<30 else 0.3
         y_speed_lim = 0.1 if abs(y_diff)<30 else 0.3 
         w_speed_lim = 1.5 if abs(w)<=math.pi/2 else 2.5
@@ -206,15 +206,17 @@ def PID_Controller(x,y,w):
         w3 = 1/wheel_radius * (Vy - Vx +(lx + ly)*Wz)
         w4 = 1/wheel_radius * (Vy + Vx -(lx + ly)*Wz)
         
-        w1_val, endw1  = pidw1.Calculate(w1,V1,PID_time,0.01,0.01,0.5)
-        w2_val, endw2 = pidw2.Calculate(w2,V2,PID_time,0.01,0.01,0.5)
-        w3_val, endw3 = pidw3.Calculate(w3,V3,PID_time,0.01,0.01,0.5)
-        w4_val, endw4 = pidw4.Calculate(w4,V4,PID_time,0.01,0.01,0.5)
+        w1_val, endw1 = pidw1.Calculate(w1,V1,PID_time,0.01,0.01,1)
+        w2_val, endw2 = pidw2.Calculate(w2,V2,PID_time,0.01,0.01,1)
+        w3_val, endw3 = pidw3.Calculate(w3,V3,PID_time,0.01,0.01,1)
+        w4_val, endw4 = pidw4.Calculate(w4,V4,PID_time,0.01,0.01,1)
 
-        W1 = (w1/0.10472 + w1_val)
-        W2 = (w2/0.10472 + w2_val)
-        W3 = (w3/0.10472 + w3_val)
-        W4 = (w4/0.10472 + w4_val)
+        pwm1, pwm2, pwm3, pwm4 = w1*rad_s_to_pwm, w2*rad_s_to_pwm, w3*rad_s_to_pwm, w4*rad_s_to_pwm
+
+        W1 = (pwm1 + w1_val)
+        W2 = (pwm2 + w2_val)
+        W3 = (pwm3 + w3_val)
+        W4 = (pwm4 + w4_val)
         
         W1 = max(min(W1, 255), -255)
         W2 = max(min(W2, 255), -255)
