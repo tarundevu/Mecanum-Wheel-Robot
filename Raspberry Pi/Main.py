@@ -57,17 +57,23 @@ Robot_y = 0.0
 # PID
 pidx = PID.PID(10,0.1,10)
 pidy = PID.PID(10,0.1,10)
-pidw = PID.PID(2,0.01,0)
-pidw1 = PID.PID(0.5,0.0001,0.5)
-pidw2 = PID.PID(0.5,0.0001,0)
-pidw3 = PID.PID(0.5,0.0001,0)
-pidw4 = PID.PID(0.5,0.0001,0)
+pidw = PID.PID(2,0.01,5)
+pidw1 = PID.PID(2,0.0001,0)
+pidw2 = PID.PID(2,0.0001,0)
+pidw3 = PID.PID(2,0.0001,0)
+pidw4 = PID.PID(2,0.0001,0)
 timeint = 0
 # DataLogging
 CoordData = []
 timelog = []
 # Functions
-logging.basicConfig(filename="MainLogs.log",format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
+plot_handler = logging.FileHandler('plot.log')
+plot_handler.setLevel(logging.INFO)
+plot_format = logging.Formatter('%(asctime)s:%(message)s')
+plot_handler.setFormatter(plot_format)
+logger.addHandler(plot_handler)
+# logging.basicConfig(filename="MainLogs.log",format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 def updateOdometry():
     global cur_x, cur_y, cur_w, theta, E1, E2, E3, E4, V1, V2, V3, V4, IMU_Val, init_yaw, timeint, Robot_x, Robot_y
     prev_time = time.time()
@@ -124,6 +130,7 @@ def updateOdometry():
         if (cur_time - prev_time > 2):
             elapsed += (cur_time - prev_time)
             CollectData((cur_y),elapsed)
+            logger.info((Robot_x,Robot_y))
             prev_time = cur_time
 
         # print(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {theta}")
@@ -180,15 +187,14 @@ def PID_Controller(x,y,w):
         PID_time = time.time()
         x_val,endx = pidx.Calculate(x,cur_x,PID_time,0.2)
         y_val,endy = pidy.Calculate(y,cur_y,PID_time,0.2)
-        w_val,endw = pidw.Calculate(w,cur_w,PID_time,0.02,0.02)
+        w_val,endw = pidw.Calculate(w,cur_w,PID_time,0.02,0.02,10)
         x_limit = abs(x_diff+0.001)*20
         y_limit = abs(y_diff+0.001)*20
-        w_limit = abs(w_diff+0.001)*10
+        w_limit = 35 if w_diff>0.16 else 0.5
 
-        
         x_speed_lim = 0.1 if abs(x_diff)<30 else 0.3
         y_speed_lim = 0.1 if abs(y_diff)<30 else 0.3 
-        w_speed_lim = 1.5 if abs(w)<=math.pi/2 else 2.5
+        w_speed_lim = 1.5 
         
         if x_val != 0:
             Vx = map_values(x_val,-x_limit,x_limit,-x_speed_lim,x_speed_lim)
