@@ -1,13 +1,3 @@
-'''
-
-  _______________________
- /_  __/ ____/ ___/_  __/
-  / / / __/  \__ \ / /   
- / / / /___ ___/ // /    
-/_/ /_____//____//_/     
-                         
-
-'''
 
 import threading
 import time
@@ -260,6 +250,7 @@ def PID_Controller(x,y,w):
     wheel_radius = 0.03
     lx,ly = 0.068, 0.061
     rad_s_to_pwm = 255/(0.10472*200)
+    multiplier = w*(15+10+5)
     while not end_Flag:
         PID_time = time.time()
         x_val,endx = pidx.Calculate(x,cur_x,PID_time,0.2)
@@ -267,7 +258,7 @@ def PID_Controller(x,y,w):
         w_val,endw = pidw.Calculate(w,cur_w,PID_time,0.02,0.05,10,True)
         x_limit = abs(x_diff+0.001)*20
         y_limit = abs(y_diff+0.001)*20
-        w_limit = 35 if w_diff>0.16 else 0.5
+        w_limit = 0.75*multiplier if w_diff>0.16 else 0.5
         x_speed_lim = 0.1 if abs(x_diff)<30 else 0.25
         y_speed_lim = 0.1 if abs(y_diff)<30 else 0.25 
         w_speed_lim = 1.5 
@@ -388,7 +379,7 @@ if __name__ == '__main__':
        
             # Move_Astar(25,40)
 
-            MoveRobot(0,30)
+            MoveRobot(2,math.pi*2)
 
             # rr = input("e")
             # if rr == 'e':
