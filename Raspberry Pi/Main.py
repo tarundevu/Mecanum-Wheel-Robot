@@ -91,7 +91,7 @@ def updateOdometry():
                 event.set()
                 break
 
-        if (cur_time - prev_time > 3):
+        if (timeint>10):
             if IMU_Val[0] == 0: # if imu not transmitting
                 logging.error("Serial connection error! Restart Arduino")
                 event.set()
@@ -172,7 +172,7 @@ def map_values(num, inMin, inMax, outMin, outMax)->float:
     return val
 
 def PID_Controller(x,y,w):
-
+    global DEBUG_1,DEBUG_2,DEBUG_3,DEBUG_4,DEBUG_5
     Vx = 0.0
     Vy = 0.0
     Wz = 0.0
@@ -183,17 +183,17 @@ def PID_Controller(x,y,w):
     wheel_radius = 0.03
     lx,ly = 0.068, 0.061
     rad_s_to_pwm = 255/(0.10472*200)
+    multiplier = w*(15+10+5)
     while not end_Flag:
         PID_time = time.time()
         x_val,endx = pidx.Calculate(x,cur_x,PID_time,0.2)
         y_val,endy = pidy.Calculate(y,cur_y,PID_time,0.2)
-        w_val,endw = pidw.Calculate(w,cur_w,PID_time,0.02,0.02,10)
+        w_val,endw = pidw.Calculate(w,cur_w,PID_time,0.02,0.05,10,True)
         x_limit = abs(x_diff+0.001)*20
         y_limit = abs(y_diff+0.001)*20
-        w_limit = 35 if w_diff>0.16 else 0.5
-
-        x_speed_lim = 0.1 if abs(x_diff)<30 else 0.3
-        y_speed_lim = 0.1 if abs(y_diff)<30 else 0.3 
+        w_limit = 0.75*multiplier if w_diff>0.16 else 0.5
+        x_speed_lim = 0.1 if abs(x_diff)<30 else 0.25
+        y_speed_lim = 0.1 if abs(y_diff)<30 else 0.25 
         w_speed_lim = 1.5 
         
         if x_val != 0:
@@ -206,16 +206,18 @@ def PID_Controller(x,y,w):
             Wz = map_values(w_val,-w_limit,w_limit,-w_speed_lim,w_speed_lim)
             Wz = max(min(Wz, w_speed_lim), -w_speed_lim)
             
+        if endx and endy and endw:
+            end_Flag = True
         
         w1 = 1/wheel_radius * (Vy + Vx +(lx + ly)*Wz)
         w2 = 1/wheel_radius * (Vy - Vx -(lx + ly)*Wz)
         w3 = 1/wheel_radius * (Vy - Vx +(lx + ly)*Wz)
         w4 = 1/wheel_radius * (Vy + Vx -(lx + ly)*Wz)
         
-        w1_val, endw1 = pidw1.Calculate(w1,V1,PID_time,0.01,0.01,1)
-        w2_val, endw2 = pidw2.Calculate(w2,V2,PID_time,0.01,0.01,1)
-        w3_val, endw3 = pidw3.Calculate(w3,V3,PID_time,0.01,0.01,1)
-        w4_val, endw4 = pidw4.Calculate(w4,V4,PID_time,0.01,0.01,1)
+        w1_val, endw1 = pidw1.Calculate(w1,V1,PID_time,0.01,0.5,1)
+        w2_val, endw2 = pidw2.Calculate(w2,V2,PID_time,0.01,0.5,1)
+        w3_val, endw3 = pidw3.Calculate(w3,V3,PID_time,0.01,0.5,1)
+        w4_val, endw4 = pidw4.Calculate(w4,V4,PID_time,0.01,0.5,1)
 
         pwm1, pwm2, pwm3, pwm4 = w1*rad_s_to_pwm, w2*rad_s_to_pwm, w3*rad_s_to_pwm, w4*rad_s_to_pwm
 
@@ -228,9 +230,10 @@ def PID_Controller(x,y,w):
         W2 = max(min(W2, 255), -255)
         W3 = max(min(W3, 255), -255)
         W4 = max(min(W4, 255), -255)
-    
+        
+        DEBUG_1,DEBUG_2,DEBUG_3,DEBUG_4,DEBUG_5 = w_val, w1, w1_val, pwm1, W1
         SendData(W1,W2,W3,W4)
-#         logging.debug("{} {} {} {}".format(W1,W2,W3,W4))
+#         logging.info("{} {} {} {}".format(w1,w1_val,pwm1,W1))
 #         logging.debug("{} {} {}".format(i1,i2,i3))
 #         logging.debug("{} {} {}".format(endx,endy,endw))
 #         logging.debug("{} {} {}".format(x,y,w))
@@ -239,8 +242,7 @@ def PID_Controller(x,y,w):
 #         logging.debug("limits:{} {} {}".format(round(x_limit,2),round(y_limit,2),round(w_limit,2)))
 #         logging.debug("val:{} {} {}".format(round(x_val,2),round(y_val,2),round(w_val,2)))
 #         
-        if endx and endy and endw:
-            end_Flag = True
+        
         
 #         time.sleep(0.05)
     logging.info("==========================[ PID Completed ]==========================")
@@ -326,10 +328,10 @@ if __name__ == '__main__':
     try:
         while True:
             if not end_flag:
-
-                Move_Astar(75,100)
-                time.sleep(2)
-                Move_Astar(160,90)
+                MoveRobot(2,2*math.pi)
+#                 Move_Astar(75,100)
+#                 time.sleep(2)
+#                 Move_Astar(160,90)
 
                 end_flag=True
             logging.info("==========================[ Task Ended ]==========================")
