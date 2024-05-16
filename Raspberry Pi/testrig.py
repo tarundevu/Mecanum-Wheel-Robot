@@ -11,7 +11,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import logging
 # Map
-StartPos = (16,16)
+StartPos = (0,0)
 # Variables & Objects
 end_flag = False
 init_yaw = False
@@ -39,8 +39,8 @@ theta = 0.0 # heading
 Robot_x = 0.0
 Robot_y = 0.0
 # PID
-pidx = PID.PID(10,0.01,8)
-pidy = PID.PID(10,0.01,8)
+pidx = PID.PID(11,0.3,5)
+pidy = PID.PID(11,0.3,5)
 pidw = PID.PID(15,0.01,5)
 pidw1 = PID.PID(2,0.0001,0.5)
 pidw2 = PID.PID(2,0.0001,0.5)
@@ -61,7 +61,12 @@ g_x,g_y = np.array([StartPos[0]]),np.array([StartPos[1]])
 CoordData = []
 timelog = []
 # Functions
-
+logger = logging.getLogger(__name__)
+plot_handler = logging.FileHandler('plot.log','w')
+plot_handler.setLevel(logging.INFO)
+plot_format = logging.Formatter('%(asctime)s:%(message)s')
+plot_handler.setFormatter(plot_format)
+logger.addHandler(plot_handler)
 def updateOdometry():
     global cur_w, Robot_x,Robot_y,g_x,g_y
     prev_time = time.time()
@@ -79,11 +84,12 @@ def updateOdometry():
         # Debugging
         if (cur_time - prev_time > 2):
             elapsed += (cur_time - prev_time)
-            CollectData((cur_x,cur_y),elapsed)
+            # CollectData((cur_x,cur_y))
+            logger.info(f"{cur_x} {cur_y}")
             prev_time = cur_time
         time.sleep(0.05)
 
-def CollectData(data,time):
+def CollectData(data):
     CoordData.append(data)
     timelog.append(time)
 
@@ -253,12 +259,12 @@ def PID_Controller(x,y,w):
     multiplier = w*(15+10+5)
     while not end_Flag:
         PID_time = time.time()
-        x_val,endx = pidx.Calculate(x,cur_x,PID_time,0.2)
-        y_val,endy = pidy.Calculate(y,cur_y,PID_time,0.2)
-        w_val,endw = pidw.Calculate(w,cur_w,PID_time,0.02,0.05,10,True)
-        x_limit = abs(x_diff+0.001)*20
-        y_limit = abs(y_diff+0.001)*20
-        w_limit = 0.75*multiplier if w_diff>0.16 else 0.5
+        x_val,endx = pidx.Calculate(x,cur_x,PID_time,0.8,0.2,10,True)
+        y_val,endy = pidy.Calculate(y,cur_y,PID_time,0.8,0.2,10)
+        w_val,endw = pidw.Calculate(w,cur_w,PID_time,0.02,0.05,10)
+        x_limit = abs(x_diff+1)*12 if x_diff>5 else 30
+        y_limit = abs(y_diff+1)*12 if y_diff>5 else 30
+        w_limit = 0.70*multiplier if w_diff>0.2 else 8
         x_speed_lim = 0.1 if abs(x_diff)<30 else 0.25
         y_speed_lim = 0.1 if abs(y_diff)<30 else 0.25 
         w_speed_lim = 1.5 
@@ -299,6 +305,7 @@ def PID_Controller(x,y,w):
         W4 = max(min(W4, 255), -255)
 
         Pwm1,Pwm2,Pwm3,Pwm4 = W1,W2,W3,W4
+
     
 #         logging.debug("{} {} {} {}".format(W1,W2,W3,W4))
 #         logging.debug("{} {} {}".format(i1,i2,i3))
@@ -309,8 +316,8 @@ def PID_Controller(x,y,w):
 #         logging.debug("limits:{} {} {}".format(round(x_limit,2),round(y_limit,2),round(w_limit,2)))
 #         logging.debug("val:{} {} {}".format(round(x_val,2),round(y_val,2),round(w_val,2)))
 #         
-        if endx and endy and endw:
-            end_Flag = True
+        # if endx and endy and endw:
+            # end_Flag = True
         
 #         time.sleep(0.05)
     logging.info("==========================[ PID Completed ]==========================")
@@ -379,7 +386,7 @@ if __name__ == '__main__':
        
             # Move_Astar(25,40)
 
-            MoveRobot(2,math.pi*2)
+            MoveRobot(0,60)
 
             # rr = input("e")
             # if rr == 'e':
