@@ -13,22 +13,24 @@ class PID():
         self.prev_error = 0.0
         self.total_error = 0.0
         self.integral = 0.0
+        self.prev_time = 0.0
+        self.rr_time = 0.0
         
 
-    def Calculate(self, input: float, sensor_reading: float,cur_time: float, end_cond = 0.5, end_limit = 0.5, int_limit = 20, debug = False):
+    def Calculate(self, input: float, sensor_reading: float,cur_time: float, end_cond = 0.5, end_limit = 0.5, int_limit = 10, debug = False):
 
         end_flag = False
         self.setpoint = input
         measured_val = sensor_reading
-        prev_time = 0.0
+        
         # calculates error
         error = self.setpoint - measured_val
-        dT = cur_time - prev_time
+        dT = cur_time - self.prev_time
         # Proportional
         proportional = self.Kp * error
 
         # Integral 
-        self.integral = (self.Ki * self.total_error)*dT
+        self.integral = (self.Ki * self.total_error)
         # limit integral to prevent windup
         self.integral = max(min(self.integral, abs((input+0.1)*int_limit)), -abs((input+0.1)*int_limit))
         # Integral windup
@@ -37,13 +39,21 @@ class PID():
             self.integral = 0.0
 
         # Derivative   
-        derivative = self.Kd * (error - self.prev_error)/dT
+        if dT>0:
+            derivative = self.Kd * (error - self.prev_error)/(dT)
+        else:
+            derivative = self.Kd * (error - self.prev_error)
 
         PIDoutput = proportional + self.integral + derivative
 
         self.prev_error = error
-        self.total_error += error
-        prev_time = cur_time
+ 
+        if (cur_time-self.rr_time>0.001):
+            self.total_error += error   
+            # print(cur_time-rr_time)
+            self.rr_time = cur_time
+
+        self.prev_time = cur_time
         # End condition if error is low, stop PID
         if error <= end_cond and error >= -end_cond:
             error = 0
@@ -52,7 +62,7 @@ class PID():
             end_flag = False
         
         if debug:
-            logging.debug(f"{proportional} | {self.integral} | {derivative} Status:{end_flag}")
+            print(f"{proportional} | {self.integral:.2f} | {derivative:.2f} Status:{end_flag}")
         
         return float(PIDoutput), bool(end_flag)
     
