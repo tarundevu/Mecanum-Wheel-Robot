@@ -25,24 +25,26 @@ import IMU
 import Astar
 import logging
 
+# Constants
+RAD_S_TO_PWM = 255/(0.10472*200)
+WHEEL_RADIUS = 0.03
+LX, LY = 0.068, 0.061
 # Map
-StartPos = (16,16)
+start_position = (16,16)
 # Variables & Objects
 enc1 = Encoder.Encoder(4,5,20)
 enc2 = Encoder.Encoder(6,12,20)
 enc3 = Encoder.Encoder(13,16,20)
 enc4 = Encoder.Encoder(17,18,20)
-Robot = Odometry.Mecanum_Drive(enc1,enc2,enc3,enc4)
-Robot_IMU = IMU.Mpu()
+robot = Odometry.Mecanum_Drive(enc1,enc2,enc3,enc4)
+robot_IMU = IMU.Mpu()
 end_flag = False
 init_yaw = False
+whole_path = []
 # Encoders
-E1, E2, E3, E4 = 0.0, 0.0, 0.0, 0.0
+enc1_val, enc2_val, enc3_val, enc4_val = 0.0, 0.0, 0.0, 0.0
 # Velocities
-V1 = 0.0
-V2 = 0.0
-V3 = 0.0
-V4 = 0.0
+v1, v2, v3, v4 = 0.0, 0.0, 0.0, 0.0
 # Robot Odometry
 cur_x = 0.0
 cur_y = 0.0
@@ -50,14 +52,13 @@ cur_w = 0.0 # Z distance
 theta = 0.0 # heading
 # Fused Odometry
 # IMU Data
-IMU_Val = [0.0]
+IMU_val = [0.0]
 # Robot Position
-Robot_x = 0.0
-Robot_y = 0.0
+robot_x, robot_y = 0.0, 0.0
 # PID
-pidx = PID.PID(10,0.1,10)
-pidy = PID.PID(10,0.1,10)
-pidw = PID.PID(2,0.01,5)
+pidx = PID.PID(15,0.1,10)
+pidy = PID.PID(15,0.1,10)
+pidw = PID.PID(20,0.2,0)
 pidw1 = PID.PID(2,0.0001,0)
 pidw2 = PID.PID(2,0.0001,0)
 pidw3 = PID.PID(2,0.0001,0)
@@ -75,7 +76,7 @@ plot_handler.setFormatter(plot_format)
 logger.addHandler(plot_handler)
 # logging.basicConfig(filename="MainLogs.log",format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 def updateOdometry():
-    global cur_x, cur_y, cur_w, theta, E1, E2, E3, E4, V1, V2, V3, V4, IMU_Val, init_yaw, timeint, Robot_x, Robot_y
+    global cur_x, cur_y, cur_w, theta, enc1_val, enc2_val, enc3_val, enc4_val, v1, v2, v3, v4, IMU_val, init_yaw, timeint, robot_x, robot_y
     prev_time = time.time()
     elapsed = 0.0
     while True:
@@ -84,39 +85,39 @@ def updateOdometry():
         # Serial communication
         if ser.in_waiting >=4:
             imudata = ser.read(4)
-            IMU_Val = struct.unpack('f',imudata)
+            IMU_val = struct.unpack('f',imudata)
    
-            if abs(IMU_Val[0]) > 180: # if imu gives gibberish values
+            if abs(IMU_val[0]) > 180: # if imu gives gibberish values
                 logging.error("IMU error! Restart code")
                 event.set()
                 break
 
         if (timeint>10):
-            if IMU_Val[0] == 0: # if imu not transmitting
+            if IMU_val[0] == 0: # if imu not transmitting
                 logging.error("Serial connection error! Restart Arduino")
                 event.set()
                 break
             if not init_yaw:
-                Robot_IMU.setInitialYaw(IMU_Val[0]) # calculate imu offset 
-                logging.info(f"INITIAL YAW CALIBRATED: {IMU_Val[0]}")
+                robot_IMU.setInitialYaw(IMU_val[0]) # calculate imu offset 
+                logging.info(f"INITIAL YAW CALIBRATED: {IMU_val[0]}")
             init_yaw = True
             
         
         # IMU
-        w_total, theta = Robot_IMU.getOdometry(IMU_Val)
+        omega, theta = robot_IMU.getOdometry(IMU_val)
         # Odometry
-        cur_x = Robot.getxDist() + StartPos[0]
-        cur_y = Robot.getyDist() + StartPos[1]
-        cur_w = w_total
+        cur_x = robot.getxDist() + start_position[0]
+        cur_y = robot.getyDist() + start_position[1]
+        cur_w = omega
         # E1 = enc1.getDist()
         # E2 = enc2.getDist()
         # E3 = enc3.getDist()
         # E4 = enc4.getDist()
-        V1 = enc1.getVel(cur_time)
-        V2 = enc2.getVel(cur_time)
-        V3 = enc3.getVel(cur_time)
-        V4 = enc4.getVel(cur_time)
-        Robot_x, Robot_y = UpdatePosition(cur_x,cur_y,theta)
+        v1 = enc1.getVel(cur_time)
+        v2 = enc2.getVel(cur_time)
+        v3 = enc3.getVel(cur_time)
+        v4 = enc4.getVel(cur_time)
+        robot_x, robot_y = UpdatePosition(cur_x,cur_y,theta)
 
         if not init_yaw:   
             timeint += 1
@@ -129,8 +130,8 @@ def updateOdometry():
         # Debugging
         if (cur_time - prev_time > 2):
             elapsed += (cur_time - prev_time)
-            CollectData((cur_y),elapsed)
-            logger.info((Robot_x,Robot_y))
+            CollectData((cur_x), cur_y)
+            logger.info((robot_x, robot_y))
             prev_time = cur_time
 
         # print(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {theta}")
@@ -176,63 +177,60 @@ def PID_Controller(x,y,w):
     Vx = 0.0
     Vy = 0.0
     Wz = 0.0
-    end_Flag = False 
-    x_diff = x - cur_x
-    y_diff = y - cur_y
-    w_diff = w - cur_w
-    wheel_radius = 0.03
-    lx,ly = 0.068, 0.061
-    rad_s_to_pwm = 255/(0.10472*200)
+    end_flag = False 
+    x_diff = x-cur_x
+    y_diff = y-cur_y
+    w_diff = w-cur_w
     multiplier = w*(15+10+5)
-    while not end_Flag:
+    while not end_flag:
         PID_time = time.time()
-        x_val,endx = pidx.Calculate(x,cur_x,PID_time,0.2)
-        y_val,endy = pidy.Calculate(y,cur_y,PID_time,0.2)
-        w_val,endw = pidw.Calculate(w,cur_w,PID_time,0.02,0.05,10,True)
-        x_limit = abs(x_diff+0.001)*20
-        y_limit = abs(y_diff+0.001)*20
-        w_limit = 0.75*multiplier if w_diff>0.16 else 0.5
-        x_speed_lim = 0.1 if abs(x_diff)<30 else 0.25
-        y_speed_lim = 0.1 if abs(y_diff)<30 else 0.25 
-        w_speed_lim = 1.5 
+        x_val,endx = pidx.Calculate(x,cur_x,PID_time)
+        y_val,endy = pidy.Calculate(y,cur_y,PID_time)
+        w_val,endw = pidw.Calculate(w,cur_w,PID_time,0.02,math.pi/2,0.02)
+        x_limit = 100
+        y_limit = 100
+        w_limit = 50 if w_diff>0.2 else 10
+        x_speedlim = 0.2
+        y_speedlim = 0.2 
+        w_speedlim = 1.5
         
         if x_val != 0:
-            Vx = map_values(x_val,-x_limit,x_limit,-x_speed_lim,x_speed_lim)
-            Vx = max(min(Vx, x_speed_lim), -x_speed_lim)
+            Vx = map_values(x_val,-x_limit,x_limit,-x_speedlim,x_speedlim)
+            Vx = max(min(Vx, x_speedlim), -x_speedlim)
         if y_val != 0:
-            Vy = map_values(y_val,-y_limit,y_limit,-y_speed_lim,y_speed_lim)
-            Vy = max(min(Vy, y_speed_lim), -y_speed_lim)
+            Vy = map_values(y_val,-y_limit,y_limit,-y_speedlim,y_speedlim)
+            Vy = max(min(Vy, y_speedlim), -y_speedlim)
         if w_val != 0:
-            Wz = map_values(w_val,-w_limit,w_limit,-w_speed_lim,w_speed_lim)
-            Wz = max(min(Wz, w_speed_lim), -w_speed_lim)
+            Wz = map_values(w_val,-w_limit,w_limit,-w_speedlim,w_speedlim)
+            Wz = max(min(Wz, w_speedlim), -w_speedlim)
             
         if endx and endy and endw:
-            end_Flag = True
+            end_flag = True
         
-        w1 = 1/wheel_radius * (Vy + Vx +(lx + ly)*Wz)
-        w2 = 1/wheel_radius * (Vy - Vx -(lx + ly)*Wz)
-        w3 = 1/wheel_radius * (Vy - Vx +(lx + ly)*Wz)
-        w4 = 1/wheel_radius * (Vy + Vx -(lx + ly)*Wz)
+        wheel_speed1 = 1/WHEEL_RADIUS * (Vy+Vx + (LX+LY)*Wz)
+        wheel_speed2 = 1/WHEEL_RADIUS * (Vy-Vx - (LX+LY)*Wz)
+        wheel_speed3 = 1/WHEEL_RADIUS * (Vy-Vx + (LX+LY)*Wz)
+        wheel_speed4 = 1/WHEEL_RADIUS * (Vy+Vx - (LX+LY)*Wz)
         
-        w1_val, endw1 = pidw1.Calculate(w1,V1,PID_time,0.01,0.5,1)
-        w2_val, endw2 = pidw2.Calculate(w2,V2,PID_time,0.01,0.5,1)
-        w3_val, endw3 = pidw3.Calculate(w3,V3,PID_time,0.01,0.5,1)
-        w4_val, endw4 = pidw4.Calculate(w4,V4,PID_time,0.01,0.5,1)
+        w1_val, endw1 = pidw1.Calculate(wheel_speed1,v1,PID_time,0.01,0.5,1)
+        w2_val, endw2 = pidw2.Calculate(wheel_speed2,v2,PID_time,0.01,0.5,1)
+        w3_val, endw3 = pidw3.Calculate(wheel_speed3,v3,PID_time,0.01,0.5,1)
+        w4_val, endw4 = pidw4.Calculate(wheel_speed4,v4,PID_time,0.01,0.5,1)
 
-        pwm1, pwm2, pwm3, pwm4 = w1*rad_s_to_pwm, w2*rad_s_to_pwm, w3*rad_s_to_pwm, w4*rad_s_to_pwm
+        pwm1, pwm2, pwm3, pwm4 = wheel_speed1*RAD_S_TO_PWM, wheel_speed2*RAD_S_TO_PWM, wheel_speed3*RAD_S_TO_PWM, wheel_speed4*RAD_S_TO_PWM
 
-        W1 = (pwm1 + w1_val)
-        W2 = (pwm2 + w2_val)
-        W3 = (pwm3 + w3_val)
-        W4 = (pwm4 + w4_val)
+        w1 = (pwm1 + w1_val)
+        w2 = (pwm2 + w2_val)
+        w3 = (pwm3 + w3_val)
+        w4 = (pwm4 + w4_val)
         
-        W1 = max(min(W1, 255), -255)
-        W2 = max(min(W2, 255), -255)
-        W3 = max(min(W3, 255), -255)
-        W4 = max(min(W4, 255), -255)
+        w1 = max(min(w1, 255), -255)
+        w2 = max(min(w2, 255), -255)
+        w3 = max(min(w3, 255), -255)
+        w4 = max(min(w4, 255), -255)
         
-        DEBUG_1,DEBUG_2,DEBUG_3,DEBUG_4,DEBUG_5 = w_val, w1, w1_val, pwm1, W1
-        SendData(W1,W2,W3,W4)
+        DEBUG_1,DEBUG_2,DEBUG_3,DEBUG_4,DEBUG_5 = w_val, w1, w1_val, pwm1, w1
+        SendData(w1,w2,w3,w4)
 #         logging.info("{} {} {} {}".format(w1,w1_val,pwm1,W1))
 #         logging.debug("{} {} {}".format(i1,i2,i3))
 #         logging.debug("{} {} {}".format(endx,endy,endw))
@@ -246,7 +244,7 @@ def PID_Controller(x,y,w):
         
 #         time.sleep(0.05)
     logging.info("==========================[ PID Completed ]==========================")
-    return end_Flag
+    return end_flag
 
         
 def MoveRobot(type, dist):
@@ -258,13 +256,13 @@ def MoveRobot(type, dist):
     w = cur_w
     
     if type == 0:
-        x = setpoint + cur_x
+        x = setpoint+cur_x
         
     elif type == 1:
-        y = setpoint + cur_y
+        y = setpoint+cur_y
         
     elif type == 2:
-        w = setpoint + cur_w
+        w = setpoint+cur_w
         
     PID_Controller(x,y,w)
 
@@ -295,7 +293,7 @@ def MoveToCoord(target_x, target_y,init_w = 0):
     logging.info("==========================[ MoveToCoord() Completed ]==========================")
 
 def Move_Astar(target_x,target_y):
-    global data, path
+    global data, path, whole_path
     logging.info("==========================[ Move_Astar() Started ]==========================")
     start = (Robot_x,Robot_y)
     path, data = Astar.main(start,(target_x,target_y))
@@ -307,6 +305,8 @@ def Move_Astar(target_x,target_y):
                 time.sleep(0.1)
             
             break
+        for coords in data:
+            whole_path.append(coords)
     except:
         logging.warning("No path found!")
     logging.info("==========================[ Move_Astar() Completed ]==========================")
@@ -337,36 +337,35 @@ if __name__ == '__main__':
             logging.info("==========================[ Task Ended ]==========================")
             time.sleep(0.1)
 
-            # PID plot
-            
-            
-            # Robot path plot
-#             plt.plot(data[0][0],data[0][1])
-#             plt.plot(16,16,'bo')
-#             plt.plot(path[len(path)-1][0],path[len(path)-1][1],'go')
-#             plt.plot(data[1][0],data[1][1],'ks')
-#             plt.plot(data[2][0],data[2][1],'rx')
-#             RobotPathX = []
-#             RobotPathY = []
-# 
-#             for x,y in CoordData:
-#                 RobotPathX.append(x)
-#                 RobotPathY.append(y)
-#             
-#             plt.plot(RobotPathX,RobotPathY,'y--')
-#             plt.axis((0, 180, 0, 120))
-
     except KeyboardInterrupt:
         SendData(0,0,0,0)
         ser.flush()
         event.set()
         update_odometry_thread.join()
         print("Exiting...")
-        plt.plot(timelog,CoordData)
-        plt.axis((0, 60, -60, 100))
-        print(timelog)
-        print(CoordData)
+        #         plt.plot(timelog,CoordData)
+#         plt.axis((0, 60, -60, 100))
+#         print(timelog)
+#         print(CoordData)
+#         plt.show()
+        plt.plot(whole_path[0][0],whole_path[0][1])
+        plt.plot(16,16,'bo')
+#         plt.plot(whole_path[len(path)-1][0],path[len(path)-1][1],'go')
+        plt.plot(whole_path[1][0],whole_path[1][1],'ks')
+        plt.plot(whole_path[2][0],whole_path[2][1],'rx')
+        RobotPathX = []
+        RobotPathY = []
+
+        for x,y in CoordData:
+            RobotPathX.append(x)
+            RobotPathY.append(y)
+        
+        plt.plot(RobotPathX,RobotPathY,'y--')
+        plt.axis((0, 180, 0, 120))
+        plt.show()
         logging.info("==========================[ Program Ended ]==========================")
         
     finally:
         GPIO.cleanup()
+
+
