@@ -59,10 +59,10 @@ robot_x, robot_y = 0.0, 0.0
 pidx = PID.PID(15,0.1,10)
 pidy = PID.PID(15,0.1,10)
 pidw = PID.PID(20,0.2,0)
-pidw1 = PID.PID(2,0.0001,0)
-pidw2 = PID.PID(2,0.0001,0)
-pidw3 = PID.PID(2,0.0001,0)
-pidw4 = PID.PID(2,0.0001,0)
+pidw1 = PID.PID(0.2,0.01,0.5)
+pidw2 = PID.PID(0.2,0.01,0.5)
+pidw3 = PID.PID(0.2,0.01,0.5)
+pidw4 = PID.PID(0.2,0.01,0.5)
 timeint = 0
 # DataLogging
 CoordData = []
@@ -295,7 +295,7 @@ def MoveToCoord(target_x, target_y,init_w = 0):
 def Move_Astar(target_x,target_y):
     global data, path, whole_path
     logging.info("==========================[ Move_Astar() Started ]==========================")
-    start = (Robot_x,Robot_y)
+    start = (robot_x,robot_y)
     path, data = Astar.main(start,(target_x,target_y))
     init_w = copy.copy(cur_w)
     try:

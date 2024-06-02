@@ -1,7 +1,7 @@
 import math
 import time
 import matplotlib.pyplot as plt
-import testrig
+# import testrig
 import numpy as np
 
 array = [(0,0),(1,1),(3,4),(6,6)]
