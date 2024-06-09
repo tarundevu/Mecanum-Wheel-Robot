@@ -17,7 +17,7 @@ class PID():
         self.rr_time = 0.0
         
 
-    def Calculate(self, input: float, sensor_reading: float,cur_time: float, end_cond = 0.5, int_range = 0, int_windup = 0.5, debug = False):
+    def Calculate(self, input: float, sensor_reading: float,cur_time: float, end_cond = 0.5, int_range = 15, int_windup = 0.5, debug = False):
 
         end_flag = False
         self.setpoint = input
@@ -34,7 +34,7 @@ class PID():
         
         if(dT>0.01):
             # Integral
-            if abs(error)<15:
+            if abs(error)<int_range:
                 self.integral = (self.Ki * self.total_error)
                 # limit integral to prevent windup
                 self.integral = max(min(self.integral, 1000), -1000)

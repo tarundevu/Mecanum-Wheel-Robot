@@ -42,10 +42,10 @@ Robot_y = 0.0
 pidx = PID.PID(11,0.3,5)
 pidy = PID.PID(11,0.3,5)
 pidw = PID.PID(15,0.01,5)
-pidw1 = PID.PID(2,0.0001,0.5)
-pidw2 = PID.PID(2,0.0001,0.5)
-pidw3 = PID.PID(2,0.0001,0.5)
-pidw4 = PID.PID(5,0.0001,0.5)
+pidw1 = PID.PID(2,0.01,0.0)
+pidw2 = PID.PID(2,0.01,0.0)
+pidw3 = PID.PID(2,0.01,0.0)
+pidw4 = PID.PID(2,0.01,0.0)
 timeint = 0
 #debug variables
 Pwm1 = 0.0
@@ -140,8 +140,8 @@ def GUI_start():
     window = tk.Tk()
     window.title('ROBOT DROID TEST CONSOLE')
     bg = tk.Canvas(window, width=400,height=330 )
-    icon_small = tk.PhotoImage(file='C:/Users/Loan Unit/Documents/Mecanum-Wheel-Robot-main/Mecanum-Wheel-Robot-main/Raspberry Pi/HUD_16x16.png')
-    icon_large = tk.PhotoImage(file='C:/Users/Loan Unit/Documents/Mecanum-Wheel-Robot-main/Mecanum-Wheel-Robot-main/Raspberry Pi/HUD_1_32x32.png')
+    icon_small = tk.PhotoImage(file='C:/Users/tarun/Documents/GitHub/Mecanum-Wheel-Robot/Raspberry Pi/HUD_16x16.png')
+    icon_large = tk.PhotoImage(file='C:/Users/tarun/Documents/GitHub/Mecanum-Wheel-Robot/Raspberry Pi/HUD_1_32x32.png')
     window.iconphoto(False,icon_large,icon_small)
     window.resizable(False,False)
     curYbutton_up = tk.Button(window,bg="light grey",fg="black",text='\u2303',height=1,width=1,command=addCury)
@@ -259,7 +259,7 @@ def PID_Controller(x,y,w):
     multiplier = w*(15+10+5)
     while not end_Flag:
         PID_time = time.time()
-        x_val,endx = pidx.Calculate(x,cur_x,PID_time,0.8,0.2,10,True)
+        x_val,endx = pidx.Calculate(x,cur_x,PID_time,0.8,0.2,10)
         y_val,endy = pidy.Calculate(y,cur_y,PID_time,0.8,0.2,10)
         w_val,endw = pidw.Calculate(w,cur_w,PID_time,0.02,0.05,10)
         x_limit = abs(x_diff+1)*12 if x_diff>5 else 30
@@ -287,10 +287,10 @@ def PID_Controller(x,y,w):
         w3 = 1/wheel_radius * (Vy - Vx +(lx + ly)*Wz)
         w4 = 1/wheel_radius * (Vy + Vx -(lx + ly)*Wz)
         
-        w1_val, endw1 = pidw1.Calculate(w1,V1,PID_time,0.01,0.01,1)
-        w2_val, endw2 = pidw2.Calculate(w2,V2,PID_time,0.01,0.01,1)
-        w3_val, endw3 = pidw3.Calculate(w3,V3,PID_time,0.01,0.01,1)
-        w4_val, endw4 = pidw4.Calculate(w4,V4,PID_time,0.01,0.01,1)
+        w1_val, endw1 = pidw1.Calculate(w1,V1,PID_time,0.01,5,1)
+        w2_val, endw2 = pidw2.Calculate(w2,V2,PID_time,0.01,5,1,True)
+        w3_val, endw3 = pidw3.Calculate(w3,V3,PID_time,0.01,5,1)
+        w4_val, endw4 = pidw4.Calculate(w4,V4,PID_time,0.01,5,1)
 
         pwm1, pwm2, pwm3, pwm4 = w1*rad_s_to_pwm, w2*rad_s_to_pwm, w3*rad_s_to_pwm, w4*rad_s_to_pwm
 
@@ -386,7 +386,7 @@ if __name__ == '__main__':
        
             # Move_Astar(25,40)
 
-            MoveRobot(0,60)
+            MoveRobot(1,60)
 
             # rr = input("e")
             # if rr == 'e':
