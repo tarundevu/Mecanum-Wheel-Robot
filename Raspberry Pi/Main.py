@@ -59,10 +59,10 @@ robot_x, robot_y = 0.0, 0.0
 pidx = PID.PID(15,0.1,10)
 pidy = PID.PID(15,0.1,10)
 pidw = PID.PID(20,0.2,0)
-pidw1 = PID.PID(0.2,0.01,0.5)
-pidw2 = PID.PID(0.2,0.01,0.5)
-pidw3 = PID.PID(0.2,0.01,0.5)
-pidw4 = PID.PID(0.2,0.01,0.5)
+pidw1 = PID.PID(0.2,0.01,0.0)
+pidw2 = PID.PID(0.2,0.01,0.0)
+pidw3 = PID.PID(0.2,0.01,0.0)
+pidw4 = PID.PID(0.2,0.01,0.0)
 timeint = 0
 # DataLogging
 CoordData = []
@@ -74,7 +74,7 @@ plot_handler.setLevel(logging.INFO)
 plot_format = logging.Formatter('%(asctime)s:%(message)s')
 plot_handler.setFormatter(plot_format)
 logger.addHandler(plot_handler)
-# logging.basicConfig(filename="MainLogs.log",format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.INFO)
+# logging.basicConfig(filename="MainLog.log",format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 def updateOdometry():
     global cur_x, cur_y, cur_w, theta, enc1_val, enc2_val, enc3_val, enc4_val, v1, v2, v3, v4, IMU_val, init_yaw, timeint, robot_x, robot_y
     prev_time = time.time()
@@ -212,10 +212,10 @@ def PID_Controller(x,y,w):
         wheel_speed3 = 1/WHEEL_RADIUS * (Vy-Vx + (LX+LY)*Wz)
         wheel_speed4 = 1/WHEEL_RADIUS * (Vy+Vx - (LX+LY)*Wz)
         
-        w1_val, endw1 = pidw1.Calculate(wheel_speed1,v1,PID_time,0.01,0.5,1)
-        w2_val, endw2 = pidw2.Calculate(wheel_speed2,v2,PID_time,0.01,0.5,1)
-        w3_val, endw3 = pidw3.Calculate(wheel_speed3,v3,PID_time,0.01,0.5,1)
-        w4_val, endw4 = pidw4.Calculate(wheel_speed4,v4,PID_time,0.01,0.5,1)
+        w1_val, endw1 = pidw1.Calculate(wheel_speed1,v1,PID_time,1,15,1)
+        w2_val, endw2 = pidw2.Calculate(wheel_speed2,v2,PID_time,1,15,1)
+        w3_val, endw3 = pidw3.Calculate(wheel_speed3,v3,PID_time,1,15,1)
+        w4_val, endw4 = pidw4.Calculate(wheel_speed4,v4,PID_time,1,15,1)
 
         pwm1, pwm2, pwm3, pwm4 = wheel_speed1*RAD_S_TO_PWM, wheel_speed2*RAD_S_TO_PWM, wheel_speed3*RAD_S_TO_PWM, wheel_speed4*RAD_S_TO_PWM
 

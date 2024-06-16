@@ -17,7 +17,7 @@ class PID():
         self.rr_time = 0.0
         
 
-    def Calculate(self, input: float, sensor_reading: float,cur_time: float, end_cond = 0.5, int_range = 15, int_windup = 0.5, debug = False):
+    def Calculate(self, input: float, sensor_reading: float, cur_time: float, end_cond = 0.5, int_range = 15, int_windup = 0.5, debug = False):
 
         end_flag = False
         self.setpoint = input
