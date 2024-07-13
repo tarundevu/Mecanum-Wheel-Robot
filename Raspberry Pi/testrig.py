@@ -38,6 +38,7 @@ theta = 0.0 # heading
 # Robot Position
 Robot_x = 0.0
 Robot_y = 0.0
+r_x,r_y =0.0,0.0
 # PID
 pidx = PID.PID(11,0.3,5)
 pidy = PID.PID(11,0.3,5)
@@ -60,6 +61,8 @@ g_x,g_y = np.array([StartPos[0]]),np.array([StartPos[1]])
 # DataLogging
 CoordData = []
 timelog = []
+prev_x = 0.0
+prev_y = 0.0
 # Functions
 logger = logging.getLogger(__name__)
 plot_handler = logging.FileHandler('plot.log','w')
@@ -227,13 +230,26 @@ def GUI_start():
     
 
 def UpdatePosition(x,y,theta):
+    global prev_x,prev_y,r_x,r_y
     rad = math.radians
     cos = math.cos
     sin = math.sin
     t = rad(theta)
-    r_x = cos(t)*x + sin(t)*y
-    r_y = -sin(t)*x + cos(t)*y
+
+    delta_x = x - prev_x
+    delta_y = y - prev_y
+    print(f"yo: {x} {prev_x}")
     
+    r_x = cos(t)*delta_x + sin(t)*delta_y
+    r_y = -sin(t)*delta_x + cos(t)*delta_y
+    
+    r_x = r_x + delta_x
+    r_y += delta_y
+    
+    prev_x = x
+    prev_y = y
+    print(f"to: {prev_x} {prev_y}")
+    time.sleep(0.05)
     return round(r_x,2),round(r_y,2)
 
 def plot_map():
@@ -288,7 +304,7 @@ def PID_Controller(x,y,w):
         w4 = 1/wheel_radius * (Vy + Vx -(lx + ly)*Wz)
         
         w1_val, endw1 = pidw1.Calculate(w1,V1,PID_time,0.01,5,1)
-        w2_val, endw2 = pidw2.Calculate(w2,V2,PID_time,0.01,5,1,True)
+        w2_val, endw2 = pidw2.Calculate(w2,V2,PID_time,0.01,5,1)
         w3_val, endw3 = pidw3.Calculate(w3,V3,PID_time,0.01,5,1)
         w4_val, endw4 = pidw4.Calculate(w4,V4,PID_time,0.01,5,1)
 

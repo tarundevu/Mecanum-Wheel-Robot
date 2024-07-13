@@ -55,6 +55,8 @@ theta = 0.0 # heading
 IMU_val = [0.0]
 # Robot Position
 robot_x, robot_y = 0.0, 0.0
+r_x,r_y = 0.0,0.0
+prev_x,prev_y = 0.0,0.0
 # PID
 pidx = PID.PID(15,0.1,10)
 pidy = PID.PID(15,0.1,10)
@@ -89,12 +91,14 @@ def updateOdometry():
    
             if abs(IMU_val[0]) > 180: # if imu gives gibberish values
                 logging.error("IMU error! Restart code")
+                print("IMU error! Restart code")
                 event.set()
                 break
 
         if (timeint>10):
             if IMU_val[0] == 0: # if imu not transmitting
                 logging.error("Serial connection error! Restart Arduino")
+                print("Serial connection error! Restart Arduino")
                 event.set()
                 break
             if not init_yaw:
@@ -142,6 +146,8 @@ def updateOdometry():
         time.sleep(0.05)
 
 def UpdatePosition(x,y,theta)->tuple:
+    global prev_x,prev_y,r_x,r_y
+
     rad = math.radians
     cos = math.cos
     sin = math.sin
@@ -149,6 +155,18 @@ def UpdatePosition(x,y,theta)->tuple:
     r_x = cos(t)*x + sin(t)*y
     r_y = -sin(t)*x + cos(t)*y
     
+    delta_x = x - prev_x
+    delta_y = y - prev_y
+    delta_worldx = cos(t)*delta_x + sin(t)*delta_y
+    delta_worldy = -sin(t)*delta_x + cos(t)*delta_y
+    
+    r_x += delta_worldx
+    r_y += delta_worldy
+    
+    prev_x = x
+    prev_y = y
+
+
     return round(r_x,2),round(r_y,2)
 
 def CollectData(data,time):
@@ -162,6 +180,7 @@ def SendData(w1,w2,w3,w4):
         #print(data)
     except serial.SerialException as e:
         logging.error(f"Error writing data to serial port: {e} |in SendData()|")
+        print("serial error")
     except Exception as e:
         logging.error(f"An unexpected error occurred: {e} |in SendData()|")
 
