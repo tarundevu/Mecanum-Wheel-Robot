@@ -1,6 +1,8 @@
 #include "I2Cdev.h"
+#include "PS2Mouse.h"
 #include <SparkFun_TB6612.h>
 #include "MPU6050_6Axis_MotionApps20.h"
+
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     #include "Wire.h"
 #endif
@@ -17,17 +19,17 @@
 #define STBY A0
 
 #define d2AIN1 8
-#define d2AIN2 9
+#define d2AIN2 A3
 #define d2BIN1 12
-#define d2BIN2 13
+#define d2BIN2 A4
 #define d2PWMA 10
 #define d2PWMB 11
 
 // IMU //
 MPU6050 mpu;
+PS2Mouse mouse(9,13);
 
 #define OUTPUT_READABLE_YAWPITCHROLL
-#define INTERRUPT_PIN A3
 
 // MPU control/status vars
 bool dmpReady = false;  // set true if DMP init was successful
@@ -64,6 +66,8 @@ Motor motor4 = Motor(d2BIN1, d2BIN2, d2PWMB, offsetB, STBY);
 float Vx = 0, Vy = 0, Wz = 0;
 float W1 = 0, W2 = 0, W3 = 0, W4 = 0;
 long inittime = millis();
+int x_n,y_n;
+float x_cm,y_cm;
 
 void setup() {
   
@@ -75,11 +79,14 @@ void setup() {
         Fastwire::setup(400, true);
     #endif
 
-  Serial.begin(115200);
+  Serial.begin(19200);
   Serial.flush();
   while (!Serial);
-  
+
+  mouse.begin();
+  delay(100);
   mpu.initialize();
+
   pinMode(INTERRUPT_PIN, INPUT);
 
   devStatus = mpu.dmpInitialize();
@@ -105,6 +112,7 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
+  int x,y;
   unsigned long now = millis();
   unsigned long delta;
   String data;
@@ -121,7 +129,20 @@ void loop() {
           
       #endif
   }
-  // Reciever
+  // Mouse //
+  mouse.getPosition(stat,x,y);
+  x_n += x;
+  y_n += y;
+  x_cm = (x_n/500.0)*2.54;
+  y_cm = (y_n/500.0)*2.54;
+  // Serial.print("x=");
+  // Serial.print(x_cm);
+  // Serial.print("\t");
+  // Serial.print("y=");
+  // Serial.println(y_cm);
+  // delay(200);
+
+  // Reciever //
   if (Serial.available() >= 16) {
 
     Serial.readBytes((char *)&W1, 4);
@@ -137,7 +158,7 @@ void loop() {
     W4 = 0;
   }
   
-  // Transmitter- send IMU data every 100ms
+  // Transmitter - send IMU data every 100ms //
   if ((now - inittime)>=100){
     inittime = now;
     float roll = ypr[2] * 180/M_PI;
