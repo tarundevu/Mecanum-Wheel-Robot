@@ -1,9 +1,8 @@
 import time
 import math
 import Encoder
-# import Main
 import RPi.GPIO as GPIO
-#
+
 class Mecanum_Drive():
     def __init__(self,E1: object,E2: object,E3: object,E4: object):
         self.prev_time = 0
@@ -18,50 +17,29 @@ class Mecanum_Drive():
         self.Enc3 = E3
         self.Enc4 = E4
 
-    def getxDist(self):
+    def getxDist(self)->float:
         '''
-        Returns the x-distance moved
+        Returns the x-distance moved using encoder
         '''
         x = (1/4.0)*(self.Enc1.getDist()-self.Enc2.getDist()-self.Enc3.getDist()+self.Enc4.getDist())
         x = format(x,".2f")
 
         return float(x)
     
-    def getyDist(self): 
+    def getyDist(self)->float: 
         '''
-        Returns the y-distance moved
+        Returns the y-distance moved using encoder
         '''
         y = (1/4.0)*(self.Enc1.getDist()+self.Enc2.getDist()+self.Enc3.getDist()+self.Enc4.getDist())
         y = format(y,".2f")
 
         return float(y)
     
-    def CalculateOdometry(self,current_time): # not in use
-        '''
-        Returns the x,y and w distance using velocity based calculations
-        '''
-        radius = 0.03
-        lx = 0.068
-        ly = 0.061
-
-        timeelapsed = current_time - self.prev_time
-        E1, E2, E3, E4 = self.Enc1.getVel(),self.Enc2.getVel(),self.Enc3.getVel(),self.Enc4.getVel()
-        Vx = (E1-E2-E3+E4)*radius/4.0
-        Vy = (E1+E2+E3+E4)*radius/4.0
-        Wz = (E1-E2+E3-E4)*radius/(4.0*(lx + ly))
-        cur_x = Vx * timeelapsed *100
-        cur_y = Vy * timeelapsed *100
-        cur_w = Wz * timeelapsed
+    def getFusedOdometry(self, val1: tuple, val2: tuple)->tuple:
+        fused_data = []
+        alpha = 0.98 #complimentary filter value
+        fused_data[0] = alpha *  (val1[0]) + (1-alpha)*val2[0]
+        fused_data[1] = alpha *  (val1[1]) + (1-alpha)*val2[1]
         
-        self.x_dist += cur_x
-        self.y_dist += cur_y
-        self.w_dist += cur_w
-
-        heading = self.w_dist
-        if heading > 3.14:
-            heading = heading - math.pi*2
-        elif heading < -3.14:
-            heading = heading + math.pi*2
+        return tuple(fused_data)
    
-        self.prev_time = current_time
-        return float(self.x_dist), float(self.y_dist), float(self.w_dist), float(heading)

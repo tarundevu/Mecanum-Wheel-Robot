@@ -51,8 +51,8 @@ cur_y = 0.0
 cur_w = 0.0 # Z distance
 theta = 0.0 # heading
 # Fused Odometry
-# IMU Data
-IMU_val = [0.0]
+# Arduino Data
+arduino_data = [0.0,0.0,0.0]
 # Robot Position
 robot_x, robot_y = 0.0, 0.0
 r_x,r_y = 0.0,0.0
@@ -78,45 +78,46 @@ plot_handler.setFormatter(plot_format)
 logger.addHandler(plot_handler)
 # logging.basicConfig(filename="MainLog.log",format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 def updateOdometry():
-    global cur_x, cur_y, cur_w, theta, enc1_val, enc2_val, enc3_val, enc4_val, v1, v2, v3, v4, IMU_val, init_yaw, timeint, robot_x, robot_y
+    global cur_x, cur_y, cur_w, theta, enc1_val, enc2_val, enc3_val, enc4_val, v1, v2, v3, v4, arduino_data, init_yaw, timeint, robot_x, robot_y
     prev_time = time.time()
     elapsed = 0.0
     while True:
         cur_time = time.time()
 
         # Serial communication
-        if ser.in_waiting >=4:
-            imudata = ser.read(4)
-            IMU_val = struct.unpack('f',imudata)
+        if ser.in_waiting >=12:
+            ser_data = ser.read(12)
+            arduino_data = struct.unpack('fff',ser_data)
    
-            if abs(IMU_val[0]) > 180: # if imu gives gibberish values
+            if abs(arduino_data[0]) > 180: # if imu gives gibberish values
                 logging.error("IMU error! Restart code")
                 print("IMU error! Restart code")
                 event.set()
                 break
 
         if (timeint>10):
-            if IMU_val[0] == 0: # if imu not transmitting
+            if arduino_data[0] == 0: # if imu not transmitting
                 logging.error("Serial connection error! Restart Arduino")
                 print("Serial connection error! Restart Arduino")
                 event.set()
                 break
             if not init_yaw:
-                robot_IMU.setInitialYaw(IMU_val[0]) # calculate imu offset 
-                logging.info(f"INITIAL YAW CALIBRATED: {IMU_val[0]}")
+                robot_IMU.setInitialYaw(arduino_data[0]) # calculate imu offset 
+                logging.info(f"INITIAL YAW CALIBRATED: {arduino_data[0]}")
             init_yaw = True
             
         
         # IMU
-        omega, theta = robot_IMU.getOdometry(IMU_val)
+        omega, theta = robot_IMU.getOdometry(arduino_data)
         # Odometry
-        cur_x = robot.getxDist() + start_position[0]
-        cur_y = robot.getyDist() + start_position[1]
+        fused_coord = robot.getFusedOdometry((arduino_data[1],arduino_data[2]),(robot.getxDist(),robot.getyDist()))
+        cur_x = fused_coord[0]+start_position[0]
+        cur_y = fused_coord[1]+start_position[1]
         cur_w = omega
-        # E1 = enc1.getDist()
-        # E2 = enc2.getDist()
-        # E3 = enc3.getDist()
-        # E4 = enc4.getDist()
+        # enc1_val = enc1.getDist()
+        # enc2_val = enc2.getDist()
+        # enc3_val = enc3.getDist()
+        # enc4_val = enc4.getDist()
         v1 = enc1.getVel(cur_time)
         v2 = enc2.getVel(cur_time)
         v3 = enc3.getVel(cur_time)
@@ -141,7 +142,7 @@ def updateOdometry():
         # print(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {theta}")
         # logging.debug(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {theta}")                                                               
         # logging.debug(f"ENCODER VALUES-> {E1}:{E2}:{E3}:{E4}")
-        # logging.debug(f"VELOCITY VALUES-> {V1}:{V2}:{V3}:{V4}")
+        # logging.debug(f"VELOCITY VALUES-> {v1}:{v2}:{v3}:{v4}")
 
         time.sleep(0.05)
 
@@ -152,8 +153,6 @@ def UpdatePosition(x,y,theta)->tuple:
     cos = math.cos
     sin = math.sin
     t = rad(theta)
-    r_x = cos(t)*x + sin(t)*y
-    r_y = -sin(t)*x + cos(t)*y
     
     delta_x = x - prev_x
     delta_y = y - prev_y
@@ -197,10 +196,7 @@ def PID_Controller(x,y,w):
     Vy = 0.0
     Wz = 0.0
     end_flag = False 
-    x_diff = x-cur_x
-    y_diff = y-cur_y
     w_diff = w-cur_w
-    multiplier = w*(15+10+5)
     while not end_flag:
         PID_time = time.time()
         x_val,endx = pidx.Calculate(x,cur_x,PID_time)
@@ -208,7 +204,7 @@ def PID_Controller(x,y,w):
         w_val,endw = pidw.Calculate(w,cur_w,PID_time,0.02,math.pi/2,0.02)
         x_limit = 100
         y_limit = 100
-        w_limit = 50 if w_diff>0.2 else 10
+        w_limit = 40 if w_diff>0.2 else 10
         x_speedlim = 0.2
         y_speedlim = 0.2 
         w_speedlim = 1.5
