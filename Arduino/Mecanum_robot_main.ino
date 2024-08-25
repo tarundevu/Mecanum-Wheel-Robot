@@ -52,10 +52,6 @@ float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gra
 // ===               INTERRUPT DETECTION ROUTINE                ===
 // ================================================================
 
-volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
-void dmpDataReady() {
-    mpuInterrupt = true;
-}
 
 const int offsetA = 1;
 const int offsetB = 1;
@@ -81,13 +77,10 @@ void setup() {
 
   Serial.begin(19200);
   Serial.flush();
-  while (!Serial);
 
   mouse.begin();
   delay(100);
   mpu.initialize();
-
-  pinMode(INTERRUPT_PIN, INPUT);
 
   devStatus = mpu.dmpInitialize();
     // supply your own gyro offsets here, scaled for min sensitivity
@@ -101,7 +94,6 @@ void setup() {
       mpu.CalibrateAccel(6);
       mpu.CalibrateGyro(6);
       mpu.setDMPEnabled(true);
-      attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
       mpuIntStatus = mpu.getIntStatus();
       dmpReady = true;
       packetSize = mpu.dmpGetFIFOPacketSize();
@@ -111,6 +103,7 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
+  uint8_t stat;
   int x,y;
   unsigned long now = millis();
   unsigned long delta;
@@ -165,8 +158,8 @@ void loop() {
     float yaw   = ypr[0] * 180/M_PI;
     
     Serial.write((byte*)&yaw,sizeof(yaw));
-    Serial.write((byte*)&x_cm,sizeof(yaw));
-    Serial.write((byte*)&y_cm,sizeof(yaw));
+    Serial.write((byte*)&x_cm,sizeof(x_cm));
+    Serial.write((byte*)&y_cm,sizeof(y_cm));
   //Serial.println(yaw);
   }
   //######### ACTUATOR #########

@@ -29,6 +29,7 @@ import logging
 RAD_S_TO_PWM = 255/(0.10472*200)
 WHEEL_RADIUS = 0.03
 LX, LY = 0.068, 0.061
+DEBUG_1,DEBUG_2,DEBUG_3,DEBUG_4,DEBUG_5 = 0.0,0.0,0.0,0.0,0.0
 # Map
 start_position = (16,16)
 # Variables & Objects
@@ -51,6 +52,7 @@ cur_y = 0.0
 cur_w = 0.0 # Z distance
 theta = 0.0 # heading
 # Fused Odometry
+mouse_x, mouse_y = 0.0, 0.0
 # Arduino Data
 arduino_data = [0.0,0.0,0.0]
 # Robot Position
@@ -78,7 +80,7 @@ plot_handler.setFormatter(plot_format)
 logger.addHandler(plot_handler)
 # logging.basicConfig(filename="MainLog.log",format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 def updateOdometry():
-    global cur_x, cur_y, cur_w, theta, enc1_val, enc2_val, enc3_val, enc4_val, v1, v2, v3, v4, arduino_data, init_yaw, timeint, robot_x, robot_y
+    global cur_x, cur_y, cur_w, theta, enc1_val, enc2_val, enc3_val, enc4_val, v1, v2, v3, v4, arduino_data, init_yaw, timeint, robot_x, robot_y, mouse_x, mouse_y
     prev_time = time.time()
     elapsed = 0.0
     while True:
@@ -110,6 +112,10 @@ def updateOdometry():
         # IMU
         omega, theta = robot_IMU.getOdometry(arduino_data)
         # Odometry
+        mouse_x += arduino_data[1]
+        mouse_y += arduino_data[2]
+        mouse_x = (mouse_x/500)*2.54
+        mouse_y = (mouse_y/500)*2.54
         fused_coord = robot.getFusedOdometry((arduino_data[1],arduino_data[2]),(robot.getxDist(),robot.getyDist()))
         cur_x = fused_coord[0]+start_position[0]
         cur_y = fused_coord[1]+start_position[1]
@@ -140,9 +146,9 @@ def updateOdometry():
             prev_time = cur_time
 
         # print(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {theta}")
-        # logging.debug(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {theta}")                                                               
-        # logging.debug(f"ENCODER VALUES-> {E1}:{E2}:{E3}:{E4}")
-        # logging.debug(f"VELOCITY VALUES-> {v1}:{v2}:{v3}:{v4}")
+        # print(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {theta}")                                                               
+        # print(f"ENCODER VALUES-> {enc1_val}:{enc2_val}:{enc3_val}:{enc4_val}")
+        # print(f"VELOCITY VALUES-> {v1}:{v2}:{v3}:{v4}")
 
         time.sleep(0.05)
 
@@ -245,7 +251,7 @@ def PID_Controller(x,y,w):
         w4 = max(min(w4, 255), -255)
         
         DEBUG_1,DEBUG_2,DEBUG_3,DEBUG_4,DEBUG_5 = w_val, w1, w1_val, pwm1, w1
-        SendData(w1,w2,w3,w4)
+        SendData(200,-200,-200,200)
 #         logging.info("{} {} {} {}".format(w1,w1_val,pwm1,W1))
 #         logging.debug("{} {} {}".format(i1,i2,i3))
 #         logging.debug("{} {} {}".format(endx,endy,endw))
