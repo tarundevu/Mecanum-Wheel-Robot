@@ -37,7 +37,7 @@ class Mecanum_Drive():
     
     def getFusedOdometry(self, val1: tuple, val2: tuple)->tuple:
         fused_data = []
-        alpha = 0.98 #complimentary filter value
+        alpha = 0.90 #complimentary filter value
         fused_data[0] = alpha *  (val1[0]) + (1-alpha)*val2[0]
         fused_data[1] = alpha *  (val1[1]) + (1-alpha)*val2[1]
         

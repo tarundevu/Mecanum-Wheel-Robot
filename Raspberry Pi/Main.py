@@ -114,8 +114,6 @@ def updateOdometry():
         # Odometry
         mouse_x += arduino_data[1]
         mouse_y += arduino_data[2]
-        mouse_x = (mouse_x/500)*2.54
-        mouse_y = (mouse_y/500)*2.54
         fused_coord = robot.getFusedOdometry((arduino_data[1],arduino_data[2]),(robot.getxDist(),robot.getyDist()))
         cur_x = fused_coord[0]+start_position[0]
         cur_y = fused_coord[1]+start_position[1]
