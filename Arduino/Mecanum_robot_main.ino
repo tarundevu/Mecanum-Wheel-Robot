@@ -143,6 +143,11 @@ void loop() {
     Serial.readBytes((char *)&W4, 4);
 
   }
+  else if(Serial.available() >= 4){
+    if (Serial.readBytes()==500){
+      x=0,y=0,x_cm=0,y_cm=0,raw_x=0,raw_y=0;
+    }
+  }
   else{
     W1 = 0;
     W3 = 0;
