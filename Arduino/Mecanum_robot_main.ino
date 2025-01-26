@@ -64,6 +64,8 @@ float W1 = 0, W2 = 0, W3 = 0, W4 = 0;
 long inittime = millis();
 int raw_x,raw_y;
 float x_cm,y_cm;
+bool isConnected = false;
+int hi = 100, ok =200,rec=500,motor=700,odom=600,clear=650;
 
 void setup() {
   
@@ -98,6 +100,14 @@ void setup() {
       dmpReady = true;
       packetSize = mpu.dmpGetFIFOPacketSize();
   } 
+  
+  // while (isConnected==false)
+  //   {
+  //     Serial.write((byte*)&hi,sizeof(hi));
+  //     delay(1000);
+  //     Recieve_msg();
+  //   }
+  W1 = 0, W2 = 0, W3 = 0, W4 = 0;
 
 }
 
@@ -135,8 +145,9 @@ void loop() {
   // delay(200);
 
   // Reciever //
-  if (Serial.available() >= 16) {
 
+  // Recieve_msg();
+  if (Serial.available() >= 16) {
     Serial.readBytes((char *)&W1, 4);
     Serial.readBytes((char *)&W2, 4);
     Serial.readBytes((char *)&W3, 4);
@@ -144,7 +155,7 @@ void loop() {
 
   }
   else if(Serial.available() >= 4){
-    if (Serial.readBytes()==500){
+    if (Serial.readBytes((char *)&W1, 4)==500){
       x=0,y=0,x_cm=0,y_cm=0,raw_x=0,raw_y=0;
     }
   }
@@ -162,6 +173,7 @@ void loop() {
     float pitch = ypr[1] * 180/M_PI;
     float yaw   = ypr[0] * 180/M_PI;
     
+    Serial.write((byte*)&odom,sizeof(odom));
     Serial.write((byte*)&yaw,sizeof(yaw));
     Serial.write((byte*)&x_cm,sizeof(x_cm));
     Serial.write((byte*)&y_cm,sizeof(y_cm));
@@ -170,6 +182,44 @@ void loop() {
   //######### ACTUATOR #########
   MoveRobotPWM(W1,W2,W3,W4);
 
+}
+void Recieve_msg(){
+  int order;
+  if(Serial.available() >= 2){
+    
+    Serial.readBytes((char *)&order, 2);
+
+    if (order == hi){
+      
+      if (!isConnected)
+        isConnected=true;
+
+      Serial.write((byte*)&ok,sizeof(ok));
+    }
+
+    else if (order== ok)
+        isConnected=true;
+
+    else{
+      switch(order){
+        case 700:{
+            Serial.readBytes((char *)&W1, 4);
+            Serial.readBytes((char *)&W2, 4);
+            Serial.readBytes((char *)&W3, 4);
+            Serial.readBytes((char *)&W4, 4);
+                }
+        case 650:{
+          x=0,y=0,x_cm=0,y_cm=0,raw_x=0,raw_y=0;
+        }
+        Serial.write(404);
+      }
+      W1=0;
+      W2=0;
+      W3=0;
+      W4=0;
+    }
+    Serial.write((byte*)&rec,sizeof(rec));
+  }
 }
 /**
 * @param w1 in pwm

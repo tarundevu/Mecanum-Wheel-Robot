@@ -30,6 +30,8 @@ RAD_S_TO_PWM = 255/(0.10472*200)
 WHEEL_RADIUS = 0.03
 LX, LY = 0.068, 0.061
 DEBUG_1,DEBUG_2,DEBUG_3,DEBUG_4,DEBUG_5 = 0.0,0.0,0.0,0.0,0.0
+# HI,OK,RECIEVED,MOTOR,ODOM,CLEAR,ERROR = 100,200,500,700,600,650,404
+# ATTEMPTS = 3
 # Map
 start_position = (16,16)
 # Variables & Objects
@@ -42,6 +44,7 @@ robot_IMU = IMU.Mpu()
 end_flag = False
 init_yaw = False
 whole_path = []
+# is_connected = False
 # Encoders
 enc1_val, enc2_val, enc3_val, enc4_val = 0.0, 0.0, 0.0, 0.0
 # Velocities
@@ -51,6 +54,7 @@ cur_x = 0.0
 cur_y = 0.0
 cur_w = 0.0 # Z distance
 theta = 0.0 # heading
+starting_angle = 0.0 # 
 # Fused Odometry
 mouse_x, mouse_y = 0.0, 0.0
 # Arduino Data
@@ -60,8 +64,8 @@ robot_x, robot_y = 0.0, 0.0
 r_x,r_y = 0.0,0.0
 prev_x,prev_y = 0.0,0.0
 # PID
-pidx = PID.PID(15,0.1,10)
-pidy = PID.PID(15,0.1,10)
+pidx = PID.PID(15,0.2,10)
+pidy = PID.PID(15,0.2,10)
 pidw = PID.PID(20,0.2,0)
 pidw1 = PID.PID(0.2,0.01,0.0)
 pidw2 = PID.PID(0.2,0.01,0.0)
@@ -87,15 +91,17 @@ def updateOdometry():
         cur_time = time.time()
 
         # Serial communication
-        if ser.in_waiting >=12:
-            ser_data = ser.read(12)
-            arduino_data = struct.unpack('fff',ser_data)
+        # while not is_connected:
+        #     print("Waiting for arduino...")
+        #     time.sleep(0.1)
+
+        ReadData()
    
-            if abs(arduino_data[0]) > 180: # if imu gives gibberish values
-                logging.error("IMU error! Restart code")
-                print("IMU error! Restart code")
-                event.set()
-                break
+        if abs(arduino_data[0]) > 180: # if imu gives gibberish values
+            logging.error("IMU error! Restart code")
+            print("IMU error! Restart code")
+            event.set()
+            break
 
         if (timeint>10):
             if arduino_data[0] == 0: # if imu not transmitting
@@ -112,8 +118,8 @@ def updateOdometry():
         # IMU
         omega, theta = robot_IMU.getOdometry(arduino_data)
         # Odometry
-        mouse_x += arduino_data[1]
-        mouse_y += arduino_data[2]
+        # mouse_x += arduino_data[1]
+        # mouse_y += arduino_data[2]
         fused_coord = robot.getFusedOdometry((arduino_data[1],arduino_data[2]),(robot.getxDist(),robot.getyDist()))
         cur_x = fused_coord[0]+start_position[0]
         cur_y = fused_coord[1]+start_position[1]
@@ -143,8 +149,7 @@ def updateOdometry():
             logger.info((robot_x, robot_y))
             prev_time = cur_time
 
-        # print(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {theta}")
-        # print(f"{Robot_x} : {Robot_y} : {cur_x} :{cur_y} : {cur_w} : {theta}")                                                               
+        # print(f"{robot_x} : {robot_y} : {cur_x} :{cur_y} : {cur_w} : {theta}")                                                             
         # print(f"ENCODER VALUES-> {enc1_val}:{enc2_val}:{enc3_val}:{enc4_val}")
         # print(f"VELOCITY VALUES-> {v1}:{v2}:{v3}:{v4}")
 
@@ -176,7 +181,44 @@ def CollectData(data,time):
     CoordData.append(data)
     timelog.append(time)
 
+def ReadData():
+    global arduino_data
+    # if ser.in_waiting>=2:
+    #     msg = ser.read(2)
+    #     order = struct.unpack('h',msg)
+    #     if (order[0] == HI):
+    #         is_connected = True
+    #         print("success")
+    #         ser.write(struct.pack('h', OK))
+    #     elif (order[0] == OK):
+    #         print("ok")
+    #     elif (order[0] == RECIEVED):
+    #         print("recievd")
+    #         return True
+    #     elif (order[0] == 600):
+    #         print("imu")
+    #         ser_data = ser.read(12)
+    #         arduino_data = struct.unpack('fff',ser_data)
+    #     elif (order[0] == 404):
+    #         print("ERRoR")
+    if ser.in_waiting >=12:
+        ser_data = ser.read(12)
+        arduino_data = struct.unpack('fff',ser_data)
+
 def SendData(w1,w2,w3,w4):
+    # try:
+    #     if order == MOTOR:
+    #         ser.write(struct.pack('h', order))
+    #         ser.write(struct.pack('ffff', package))
+    #     elif order == CLEAR:
+    #         ser.write(struct.pack('h', order))
+    #         ser.write(struct.pack('h', package))
+    #     #print(data)
+    # except serial.SerialException as e:
+    #     logging.error(f"Error writing data to serial port: {e} |in SendData()|")
+    #     print("serial error")
+    # except Exception as e:
+    #     logging.error(f"An unexpected error occurred: {e} |in SendData()|")
     try:
         data = struct.pack('ffff', w1, w2, w3, w4)
         ser.write(data)
@@ -249,7 +291,7 @@ def PID_Controller(x,y,w):
         w4 = max(min(w4, 255), -255)
         
         DEBUG_1,DEBUG_2,DEBUG_3,DEBUG_4,DEBUG_5 = w_val, w1, w1_val, pwm1, w1
-        SendData(200,-200,-200,200)
+        SendData(w1,w2,w3,w4)
 #         logging.info("{} {} {} {}".format(w1,w1_val,pwm1,W1))
 #         logging.debug("{} {} {}".format(i1,i2,i3))
 #         logging.debug("{} {} {}".format(endx,endy,endw))
@@ -292,7 +334,26 @@ def MoveRobot(type, dist):
     pidw.Reset()
     logging.info("==========================[ MoveRobot() Ended ]==========================")
        
+def RotateToAngle(angle):
+    ''' Rotates robot to a specified heading'''
+    logging.info("==========================[ RotateToAngle() Started ]==========================")
+   
+    
+    x = cur_x
+    y = cur_y
+    sign = math.copysign(1,(angle - theta))
+    
+    while (theta>angle-0.5 and theta<angle+0.5)==False:
         
+        PID_Controller(x,y,math.pi*2*sign)
+
+    SendData(0,0,0,0)
+
+    pidx.Reset()
+    pidy.Reset()
+    pidw.Reset()
+    logging.info("==========================[ RotateToAngle() Ended ]==========================")
+    
 def MoveToCoord(target_x, target_y,init_w = 0):
     logging.info("==========================[ MoveToCoord() Started ]==========================")
     angle = math.radians(theta)
@@ -301,6 +362,8 @@ def MoveToCoord(target_x, target_y,init_w = 0):
     w = init_w if init_w != 0 else cur_w # when using Astar, to remember the theta value at the start
     x =  math.cos(angle)*target_x - math.sin(angle)*target_y
     y =  math.sin(angle)*target_x + math.cos(angle)*target_y
+    x = x-start_position[0] if x<0 else x
+    y = y-start_position[1] if y<0 else y
     
     PID_Controller(x,y,w)
     SendData(0,0,0,0)
@@ -348,7 +411,7 @@ if __name__ == '__main__':
         while True:
             if not end_flag:
                 MoveRobot(2,2*math.pi)
-#                 Move_Astar(75,100)
+                MoveToCoord(60,60)
 #                 time.sleep(2)
 #                 Move_Astar(160,90)
 
@@ -358,6 +421,7 @@ if __name__ == '__main__':
 
     except KeyboardInterrupt:
         SendData(0,0,0,0)
+        SendData(500,0,0,0)
         ser.flush()
         event.set()
         update_odometry_thread.join()
@@ -367,21 +431,21 @@ if __name__ == '__main__':
 #         print(timelog)
 #         print(CoordData)
 #         plt.show()
-        plt.plot(whole_path[0][0],whole_path[0][1])
-        plt.plot(16,16,'bo')
-#         plt.plot(whole_path[len(path)-1][0],path[len(path)-1][1],'go')
-        plt.plot(whole_path[1][0],whole_path[1][1],'ks')
-        plt.plot(whole_path[2][0],whole_path[2][1],'rx')
-        RobotPathX = []
-        RobotPathY = []
+#         plt.plot(whole_path[0][0],whole_path[0][1])
+#         plt.plot(16,16,'bo')
+# #         plt.plot(whole_path[len(path)-1][0],path[len(path)-1][1],'go')
+#         plt.plot(whole_path[1][0],whole_path[1][1],'ks')
+#         plt.plot(whole_path[2][0],whole_path[2][1],'rx')
+#         RobotPathX = []
+#         RobotPathY = []
 
-        for x,y in CoordData:
-            RobotPathX.append(x)
-            RobotPathY.append(y)
+#         for x,y in CoordData:
+#             RobotPathX.append(x)
+#             RobotPathY.append(y)
         
-        plt.plot(RobotPathX,RobotPathY,'y--')
-        plt.axis((0, 180, 0, 120))
-        plt.show()
+#         plt.plot(RobotPathX,RobotPathY,'y--')
+#         plt.axis((0, 180, 0, 120))
+#         plt.show()
         logging.info("==========================[ Program Ended ]==========================")
         
     finally:
